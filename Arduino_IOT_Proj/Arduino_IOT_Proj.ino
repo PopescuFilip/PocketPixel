@@ -1,13 +1,26 @@
 #include<LiquidCrystal.h>
 
+#define PIN_SWITCH 9
+#define PIN_HORIZONTAL A0
+#define PIN_VERTICAL A1
+
+#define PIN_RS 12
+#define PIN_ENABLE 11
+#define PIN_D4 5
+#define PIN_D5 4
+#define PIN_D6 3
+#define PIN_D7 2
+
+#define SCREEN_COLS 16
+#define SCREEN_ROWS 2
+
 // Joystick Input
 int xValue = 0;
 int yValue = 0;
 int bValue = 0;
 
 // LCD
-
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
 
 // Text Input Variables
 
@@ -26,16 +39,16 @@ String myText = "";
 
 void setup()
 {
- lcd.begin(16, 2); 
+ lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
  Serial.begin(9600);
- pinMode(9, INPUT_PULLUP);
+ pinMode(PIN_SWITCH, INPUT_PULLUP);
 }
 
 void loop()
 {
-  xValue = analogRead(A0);  
-  yValue = analogRead(A1);  
-  bValue = digitalRead(9);
+  xValue = analogRead(PIN_HORIZONTAL);  
+  yValue = analogRead(PIN_VERTICAL);  
+  bValue = digitalRead(PIN_SWITCH);
 
   lcd.clear();
   lcd.setCursor(0,0);   
