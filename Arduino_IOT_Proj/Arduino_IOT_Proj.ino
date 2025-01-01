@@ -21,8 +21,8 @@
 #define PIN_AUTOPLAY 1
 #define SPRITE_RUN1 1
 #define SPRITE_RUN2 2
-#define SPRITE_JUMP 3
-#define SPRITE_JUMP_UPPER '.'         // Use the '.' character for the head
+#define SPRITE_JUMP 2
+#define SPRITE_JUMP_UPPER 3         // Use the '.' character for the head
 #define SPRITE_JUMP_LOWER 4
 #define SPRITE_TERRAIN_EMPTY ' '      // User the ' ' character
 #define SPRITE_TERRAIN_SOLID 5
@@ -227,37 +227,37 @@ static bool lastButtonState = false;
 void initializeGraphics(){
   static byte graphics[] = {
     // Run position 1
-    B01100,
-    B01100,
-    B00000,
     B01110,
-    B11100,
-    B01100,
-    B11010,
-    B10011,
+    B11111,
+    B11000,
+    B11111,
+    B11111,
+    B11111,
+    B01010,
+    B01000,
     // Run position 2
-    B01100,
-    B01100,
-    B00000,
-    B01100,
-    B01100,
-    B01100,
-    B01100,
     B01110,
+    B11111,
+    B11000,
+    B11111,
+    B11111,
+    B11111,
+    B01010,
+    B00010,
     // Jump
-    B01100,
-    B01100,
     B00000,
-    B11110,
-    B01101,
+    B00000,
+    B00000,
+    B00000,
+    B01110,
     B11111,
-    B10000,
-    B00000,
+    B11000,
+    B11111,
     // Jump lower
-    B11110,
-    B01101,
     B11111,
-    B10000,
+    B11111,
+    B01010,
+    B01010,
     B00000,
     B00000,
     B00000,
