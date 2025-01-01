@@ -348,13 +348,15 @@ void sidescrollerMainLoop(){
   }
     
   if (buttonPushed) {
-    if (heroPos <= HERO_POSITION_RUN_LOWER_2) heroPos = HERO_POSITION_JUMP_1;
+    if (heroPos <= HERO_POSITION_RUN_LOWER_2) 
+      heroPos = HERO_POSITION_JUMP_1;
     buttonPushed = false;
   }  
 
   if (drawHero(heroPos, terrainUpper, terrainLower, distance >> 3)) {
     playing = false; // The hero collided with something. Too bad.
   } else {
+    //advance hero
     if (heroPos == HERO_POSITION_RUN_LOWER_2 || heroPos == HERO_POSITION_JUMP_8) {
       heroPos = HERO_POSITION_RUN_LOWER_1;
     } else if ((heroPos >= HERO_POSITION_JUMP_3 && heroPos <= HERO_POSITION_JUMP_5) && terrainLower[HERO_HORIZONTAL_POSITION] != SPRITE_TERRAIN_EMPTY) {
