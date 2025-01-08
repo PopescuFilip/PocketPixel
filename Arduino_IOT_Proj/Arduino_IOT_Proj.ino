@@ -1,4 +1,5 @@
 #include<LiquidCrystal.h>
+#include<LedControl.h>
 
 #pragma region CONSTANTS
 
@@ -12,6 +13,10 @@
 #define PIN_D5 4
 #define PIN_D6 3
 #define PIN_D7 2
+
+#define DIN 10
+#define CS 7
+#define CLK 13
 
 #define SCREEN_COLS 16
 #define SCREEN_ROWS 2
@@ -64,6 +69,8 @@ int bValue = 0;
 // LCD
 LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
 
+LedControl lc(DIN, CLK, CS, 0);
+
 // Text Input Variables
 
 String chars[5] = {
@@ -81,9 +88,13 @@ String myText = "";
 
 void setup()
 {
- lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
- Serial.begin(9600);
- pinMode(PIN_SWITCH, INPUT_PULLUP);
+  lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
+  Serial.begin(9600);
+  pinMode(PIN_SWITCH, INPUT_PULLUP);
+  pinMode(PIN_HORIZONTAL, INPUT);
+  pinMode(PIN_VERTICAL, INPUT);
+
+  mazeSetup();
 }
 
 #pragma region MAIN_LOOP
@@ -98,7 +109,8 @@ void loop()
   }
   else
   {
-    sidescrollerMainLoop();
+    //sidescrollerMainLoop();
+    mazeLoop();
   }
 }
 
@@ -492,37 +504,26 @@ void checkButton()
 
 #pragma region Maze
 
-#include "LedControl.h"
-#include<LiquidCrystal.h>
-
-#define PIN_RS 12
-#define PIN_ENABLE 11
-#define PIN_D4 5
-#define PIN_D5 4
-#define PIN_D6 3
-#define PIN_D7 2
-
-// Joystick Input
-const int JOYSTICK_X = A0; // Pinul analogic pentru axa X
-const int JOYSTICK_Y = A1; // Pinul analogic pentru axa Y
-const int JOYSTICK_BUTTON = 9; // Pinul digital pentru butonul joystick-ului
-
-int xValue = 0;
-int yValue = 0;
 bool buttonPressed = false;
 
-int DIN = 10;
-int CS = 7;
-int CLK = 13;
 
 int cursor_col = 0; // Coloana inițială
 int cursor_row = 2; // Rândul inițial
 
-LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
+// Matricea stării curente a LED-urilor
+int CurrentState[8][8] = {0};
 
 bool game_won = false; // Indicator pentru câștig
 
-LedControl lc = LedControl(DIN, CLK, CS, 0);
+void mazeSetup()
+{
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 15);
+  lc.clearDisplay(0);
+  
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
+}
 
 // Matrici de mutare
 int Move_up[8][8] = {
@@ -573,30 +574,11 @@ int Move_right[8][8] = {
 };
 
 
-// Matricea stării curente a LED-urilor
-int CurrentState[8][8] = {0};
-
-void setup() {
-  pinMode(JOYSTICK_X, INPUT);
-  pinMode(JOYSTICK_Y, INPUT);
-  pinMode(JOYSTICK_BUTTON, INPUT_PULLUP);
-
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 15);
-  lc.clearDisplay(0);
-  
-  // Setăm LED-ul de start
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
-
-}
-
-
 void Move_in_the_maze() {
   if (game_won) return; // Oprește mutările dacă jocul e câștigat
 
-  xValue = analogRead(JOYSTICK_X);
-  yValue = analogRead(JOYSTICK_Y);
+  xValue = analogRead(PIN_HORIZONTAL);
+  yValue = analogRead(PIN_VERTICAL);
 
   int new_row = cursor_row;
   int new_col = cursor_col;
@@ -650,8 +632,9 @@ void Move_in_the_maze() {
 
 }
 
-void loop() {
+void mazeLoop() {
   Move_in_the_maze();
   delay(200); // Întârziere pentru control mai precis
 }
+
 #pragma endregion Maze
