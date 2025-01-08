@@ -488,3 +488,170 @@ void checkButton()
 }
 
 #pragma endregion SIDESCROLLER
+
+
+#pragma region Maze
+
+#include "LedControl.h"
+#include<LiquidCrystal.h>
+
+#define PIN_RS 12
+#define PIN_ENABLE 11
+#define PIN_D4 5
+#define PIN_D5 4
+#define PIN_D6 3
+#define PIN_D7 2
+
+// Joystick Input
+const int JOYSTICK_X = A0; // Pinul analogic pentru axa X
+const int JOYSTICK_Y = A1; // Pinul analogic pentru axa Y
+const int JOYSTICK_BUTTON = 9; // Pinul digital pentru butonul joystick-ului
+
+int xValue = 0;
+int yValue = 0;
+bool buttonPressed = false;
+
+int DIN = 10;
+int CS = 7;
+int CLK = 13;
+
+int cursor_col = 0; // Coloana inițială
+int cursor_row = 2; // Rândul inițial
+
+LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
+
+bool game_won = false; // Indicator pentru câștig
+
+LedControl lc = LedControl(DIN, CLK, CS, 0);
+
+// Matrici de mutare
+int Move_up[8][8] = {
+  {0,0,0,0,0,0,0,0},
+  {1,1,1,0,1,0,1,1},
+  {1,1,1,1,0,0,0,1},
+  {0,1,1,1,0,0,0,0},
+  {1,0,1,1,0,1,1,1},
+  {1,1,0,0,0,1,1,1},
+  {1,0,0,0,0,1,0,1},
+  {0,0,1,0,0,0,0,1}
+};
+
+
+int Move_down[8][8] = {
+  {1,1,1,0,1,0,1,1},
+  {1,1,1,1,0,0,0,1},
+  {0,1,1,1,0,0,0,0},
+  {1,0,1,1,0,1,1,1},
+  {1,1,0,0,0,1,1,1},
+  {1,0,0,0,0,1,1,1},
+  {0,0,1,0,0,0,0,1},
+  {0,0,0,0,0,0,0,0}
+};
+
+
+int Move_left[8][8] = {
+  {0,1,0,0,1,1,0,1},
+  {0,0,0,0,1,1,1,0},
+  {0,0,1,0,0,1,1,1},
+  {0,1,0,0,1,1,0,1},
+  {0,0,1,0,1,0,0,0},
+  {0,0,1,1,1,0,0,0},
+  {0,1,1,1,1,1,1,1},
+  {0,1,1,1,1,1,1,0}
+};
+
+
+int Move_right[8][8] = {
+  {1,0,0,1,1,0,1,0},
+  {0,0,0,1,1,1,0,1},
+  {0,1,0,0,1,1,1,0},
+  {1,0,0,1,1,0,1,0},
+  {0,1,0,1,0,0,0,0},
+  {0,1,1,1,0,0,0,0},
+  {1,1,1,1,1,1,1,0},
+  {1,1,1,1,1,1,0,0}
+};
+
+
+// Matricea stării curente a LED-urilor
+int CurrentState[8][8] = {0};
+
+void setup() {
+  pinMode(JOYSTICK_X, INPUT);
+  pinMode(JOYSTICK_Y, INPUT);
+  pinMode(JOYSTICK_BUTTON, INPUT_PULLUP);
+
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 15);
+  lc.clearDisplay(0);
+  
+  // Setăm LED-ul de start
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
+
+}
+
+
+void Move_in_the_maze() {
+  if (game_won) return; // Oprește mutările dacă jocul e câștigat
+
+  xValue = analogRead(JOYSTICK_X);
+  yValue = analogRead(JOYSTICK_Y);
+
+  int new_row = cursor_row;
+  int new_col = cursor_col;
+
+
+ if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) { // Stânga → Sus
+    new_row--;
+  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { // Sus → Dreapta
+    new_col++;
+  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { // Dreapta → Jos
+    new_row++;
+  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { // Jos → Stânga
+    new_col--;
+  }
+
+  // Actualizăm poziția doar dacă s-a schimbat
+  if (new_row != cursor_row || new_col != cursor_col) {
+    // Stingem LED-ul de pe poziția curentă
+    CurrentState[cursor_row][cursor_col] = 0; // Deactivăm LED-ul curent
+    lc.setLed(0, cursor_row, cursor_col, false); // Aprindem LED-ul direct
+
+    // Aprindem LED-ul pe noua poziție
+    CurrentState[new_row][new_col] = 1; // Activăm LED-ul pe noua poziție
+    lc.setLed(0, new_row, new_col, true); // Aprindem LED-ul direct
+
+    // Actualizăm cursorul
+    cursor_row = new_row;
+    cursor_col = new_col;
+    // Aprindem și LED-ul de pe noua poziție
+    CurrentState[cursor_row][cursor_col] = 1;
+  }
+
+  // Verifică dacă poziția curentă este cea finală
+  if (cursor_row == 1 && cursor_col == 7) {
+    game_won = true;
+    Serial.println("Felicitări, ai câștigat!");
+    // Afișăm mesajul pe LCD
+    lcd.clear();
+    lcd.setCursor(0, 0); // Setează cursorul la începutul liniei 0
+    lcd.print("Felicitari!");
+    delay(1000);
+    lcd.setCursor(0, 1); // Linia 1
+    lcd.print("Ai reusit!");
+
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            lc.setLed(0, row, col, true);  // Aprinde LED-ul pe fiecare poziție
+        }
+    }
+  }
+
+}
+
+void loop() {
+  Move_in_the_maze();
+  delay(200); // Întârziere pentru control mai precis
+}
+#pragma endregion Maze
