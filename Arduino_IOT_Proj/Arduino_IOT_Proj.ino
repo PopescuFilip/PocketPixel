@@ -59,6 +59,16 @@
 
 #pragma endregion SIDESCROLLER_CONST
 
+#pragma region SNAKE
+
+#define SNAKE_MAX_LENGTH 16
+#define SNAKE_START_LENGTH 5
+#define FOOD_SYMBOL 'F'
+#define SNAKE_SYMBOL 'S'
+#define EMPTY_SYMBOL ' '
+
+#pragma endregion SNAKE
+
 #pragma endregion CONSTANTS
 
 // Joystick Input
@@ -95,6 +105,7 @@ void setup()
   pinMode(PIN_VERTICAL, INPUT);
 
   mazeSetup();
+  snakeSetup();
 }
 
 #pragma region MAIN_LOOP
@@ -110,7 +121,8 @@ void loop()
   else
   {
     //sidescrollerMainLoop();
-    mazeLoop();
+    //mazeLoop();
+    //snakeLoop();
   }
 }
 
@@ -638,3 +650,137 @@ void mazeLoop() {
 }
 
 #pragma endregion Maze
+
+#pragma region SNAKE
+
+// Enumeration for directions
+enum Direction { UP, DOWN, LEFT, RIGHT };
+
+struct Position {
+    int x, y;
+};
+
+Position snake[SNAKE_MAX_LENGTH];
+Position food;
+int snake_length = SNAKE_START_LENGTH;
+bool snake_alive = true;
+bool snake_game_active = false;
+Direction snake_direction = Direction::UP;
+
+// Function to check if food is generated on the snake's body
+bool isFoodOnSnake() {
+    for (int i = 0; i < snake_length; i++) {
+        if (snake[i].x == food.x && snake[i].y == food.y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void snakeSetup() {
+    randomSeed(analogRead(0)); // Seed for random number generation
+    food.x = random(1, SCREEN_COLS - 1);
+    food.y = random(1, SCREEN_ROWS - 1);
+    for (int i = 0; i < snake_length; i++) {
+        snake[i].x = SCREEN_COLS / 2;
+        snake[i].y = SCREEN_ROWS / 2 + i;
+    }
+    snake_direction = Direction::UP;
+    snake_game_active = true;
+    snake_alive = true;
+}
+
+void drawSnakeGame() {
+    lcd.clear();
+    for (int i = 0; i < snake_length; i++) {
+        lcd.setCursor(snake[i].x, snake[i].y);
+        lcd.write(SNAKE_SYMBOL);
+    }
+    lcd.setCursor(food.x, food.y);
+    lcd.write(FOOD_SYMBOL);
+}
+
+void moveSnake() {
+    Position next = snake[0];
+
+    // Determine the next position of the snake
+    switch (snake_direction) {
+        case Direction::UP:    next.y--; break;
+        case Direction::DOWN:  next.y++; break;
+        case Direction::LEFT:  next.x--; break;
+        case Direction::RIGHT: next.x++; break;
+    }
+
+    // Check for collision with screen boundaries
+    if (next.x < 0) next.x = SCREEN_COLS - 1;
+    if (next.y < 0) next.y = SCREEN_ROWS - 1;
+    if (next.x >= SCREEN_COLS) next.x = 0;
+    if (next.y >= SCREEN_ROWS) next.y = 0;
+
+   // Check for collision with the snake's body
+    for (int i = 0; i < snake_length; i++) {
+        if (snake[i].x == next.x && snake[i].y == next.y) {
+            snake_alive = false;
+            return;
+        }
+    }
+
+    // Move the snake
+    for (int i = snake_length - 1; i > 0; i--) {
+        snake[i] = snake[i - 1];
+    }
+    snake[0] = next;
+
+    // Check if the snake eats the food
+    if (snake[0].x == food.x && snake[0].y == food.y) {
+        if (snake_length < SNAKE_MAX_LENGTH) {
+            snake[snake_length] = snake[snake_length - 1];
+            snake_length++;
+        }
+        // Respawn the food
+        do {
+            food.x = random(1, SCREEN_COLS - 1);
+            food.y = random(1, SCREEN_ROWS - 1);
+        } while (isFoodOnSnake());
+    }
+}
+
+void snakeLoop() {
+    if (!snake_game_active) return;
+
+    xValue = analogRead(PIN_HORIZONTAL);
+    yValue = analogRead(PIN_VERTICAL);
+
+    // Read joystick direction and update snake's direction
+    Direction new_direction = snake_direction;
+    if (xValue < 450) new_direction = Direction::UP;
+    else if (xValue > 570) new_direction = Direction::DOWN;
+    else if (yValue < 450) new_direction = Direction::LEFT;
+    else if (yValue > 570) new_direction = Direction::RIGHT;
+
+    // Check if the new direction is valid
+    if (!((snake_direction == Direction::UP && new_direction == Direction::DOWN) ||
+          (snake_direction == Direction::DOWN && new_direction == Direction::UP) ||
+          (snake_direction == Direction::LEFT && new_direction == Direction::RIGHT) ||
+          (snake_direction == Direction::RIGHT && new_direction == Direction::LEFT))) {
+        snake_direction = new_direction;
+    }
+
+    if (snake_alive) {
+        moveSnake();
+        drawSnakeGame();
+    } else {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Game Over");
+
+        // Reset the game after Game Over
+        if (digitalRead(PIN_SWITCH) == LOW) { 
+            snakeSetup();
+        }
+    }
+
+    delay(200);// Delay to control game speed
+}
+
+#pragma endregion SNAKE
