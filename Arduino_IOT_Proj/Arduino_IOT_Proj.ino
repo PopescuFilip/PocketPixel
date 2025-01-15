@@ -98,7 +98,8 @@ void setup()
 
 void loop()
 {
-  snakeLoop();
+  sidescrollerMainLoop();
+  //snakeLoop();
 }
 
 #pragma endregion MAIN_LOOP
@@ -361,16 +362,18 @@ bool drawHero(byte position, char* terrainUpper, char* terrainLower, unsigned in
 
 void checkButton()
 {
-  int buttonState = digitalRead(PIN_SWITCH);
-  if (buttonState == HIGH && buttonState != lastButtonState)
+  static const int threshhold = 600;
+  int joystickState = analogRead(PIN_VERTICAL);
+  if (joystickState > threshhold && lastButtonState == false)
   {
     buttonPushed = true;
+    lastButtonState = true;
   }
   else 
   {
     buttonPushed = false;
+    lastButtonState = false;
   }
-  lastButtonState = buttonState;
 }
 
 #pragma endregion SIDESCROLLER
