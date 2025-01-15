@@ -71,6 +71,7 @@
 #define SECTORS_PER_COLUMN 2
 #define BOARD_WIDTH (SECTORS_PER_ROW * SECTOR_WIDTH)
 #define BOARD_HEIGHT (SECTORS_PER_COLUMN * SECTOR_HEIGHT)
+#define INITIAL_SPEED 100
 
 #pragma endregion SNAKE
 
@@ -102,8 +103,8 @@ void setup()
 
 void loop()
 {
-  sidescrollerMainLoop(MEDIUM);
-  //snakeLoop();
+  //sidescrollerMainLoop(MEDIUM);
+  snakeLoop(HARD);
 }
 
 #pragma endregion MAIN_LOOP
@@ -551,6 +552,9 @@ bool right_just_pressed = false;
 bool up_just_pressed = false;
 bool down_just_pressed = false;
 
+bool isGameActive = true;
+int applesEaten = 0;
+
 struct point_t {
   char x;
   char y;
@@ -744,8 +748,33 @@ bool check_collision() {
     return false; 
 }
 
+int getGameSpeed(int difficulty) {
+    switch (difficulty) {
+        case EASY:
+            return INITIAL_SPEED;
+        case MEDIUM:
+            return INITIAL_SPEED - 30;  
+        case HARD:
+            return INITIAL_SPEED - 60;  
+        default:
+            return INITIAL_SPEED;
+    }
+}
 
-void snakeLoop() {
+void checkDifficultyAdjustment(int &difficulty) {
+    if (applesEaten >= 15 && difficulty < HARD) {
+        difficulty++;
+    } else if (applesEaten < 15 && difficulty > EASY) {
+        difficulty--;
+    }
+    applesEaten = 0; 
+}
+
+void snakeLoop(int difficulty) {
+  if (!isGameActive) {
+        return; 
+    }
+
     update_input();
 
     unsigned long time = millis();
@@ -753,17 +782,23 @@ void snakeLoop() {
     last_update = time;
     time_since_last_draw += elapsed;
 
-    if (time_since_last_draw >= MIN_DRAW_WAIT) {
+    int gameSpeed = getGameSpeed(difficulty); 
+
+    if (time_since_last_draw >= gameSpeed) {
         move_snake();
 
         if (check_collision()) {
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("Game Over!");
-            while (true); 
+             isGameActive = false;
+
+            checkDifficultyAdjustment(difficulty);
+            return;
         }
 
         if (snake_head->pos.x == apple_pos.x && snake_head->pos.y == apple_pos.y) {
+            applesEaten++;
             generate_apple();
             add_snake_part();
         }
@@ -771,6 +806,7 @@ void snakeLoop() {
         time_since_last_draw = 0;
     }
 }
+
 
 #pragma endregion SNAKE
 
