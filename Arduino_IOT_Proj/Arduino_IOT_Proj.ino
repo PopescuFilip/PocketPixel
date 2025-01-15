@@ -61,11 +61,12 @@
 
 #pragma region SNAKE
 
-#define SNAKE_MAX_LENGTH 16
-#define SNAKE_START_LENGTH 5
-#define FOOD_SYMBOL 'F'
-#define SNAKE_SYMBOL 'S'
-#define EMPTY_SYMBOL ' '
+#define SECTOR_WIDTH 5
+#define SECTOR_HEIGHT 8
+#define SECTORS_PER_ROW 16
+#define SECTORS_PER_COLUMN 2
+#define BOARD_WIDTH (SECTORS_PER_ROW * SECTOR_WIDTH)
+#define BOARD_HEIGHT (SECTORS_PER_COLUMN * SECTOR_HEIGHT)
 
 #pragma endregion SNAKE
 
@@ -121,8 +122,8 @@ void loop()
   else
   {
     //sidescrollerMainLoop();
-    mazeLoop();
-    //snakeLoop();
+    //mazeLoop();
+    snakeLoop();
   }
 }
 
@@ -516,29 +517,28 @@ void checkButton()
 
 #pragma region Maze
 
-// Joystick Input
-const int JOYSTICK_X = A0; // Pinul analogic pentru axa X
-const int JOYSTICK_Y = A1; // Pinul analogic pentru axa Y
-const int JOYSTICK_BUTTON = 9; // Pinul digital pentru butonul joystick-ului
-
-
 bool buttonPressed = false;
-int cursor_col = 0; 
-int cursor_row = 2; 
+
+
+int cursor_col = 0; // Coloana inițială
+int cursor_row = 2; // Rândul inițial
+
+// Matricea stării curente a LED-urilor
 int CurrentState[8][8] = {0};
 
-bool game_won = false; 
-bool gameOver=false;
+bool game_won = false; // Indicator pentru câștig
 
-int level=1;
-int easyTime=30;
-int mediumTime=20;
-int hardTime=10;
-int currentTime;
+void mazeSetup()
+{
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 15);
+  lc.clearDisplay(0);
+  
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
+}
 
-unsigned long lastUpdateTime = 0; 
-unsigned long timerInterval = 1000; 
-
+// Matrici de mutare
 int Move_up[8][8] = {
   {0,0,0,0,0,0,0,0},
   {1,1,1,0,1,0,1,1},
@@ -587,85 +587,8 @@ int Move_right[8][8] = {
 };
 
 
-
-void mazeSetup()
-{
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 15);
-  lc.clearDisplay(0);
-  
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true); 
-
-  lcd.begin(16, 2);
-  resetGame(); 
-}
-
-void resetGame() 
-{
-  if(gameOver)
-  {
-    return;
-  }
-  lcd.clear();
-  cursor_col = 0; 
-  cursor_row = 2;  
-  game_won = false; 
-
-  if (level == 1) {
-    currentTime = easyTime;
-  } else if (level == 2) {
-    currentTime = mediumTime;
-  } else if (level == 3) {
-    currentTime = hardTime;
-  }
-
-  lc.clearDisplay(0); 
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
-      CurrentState[i][j] = 0; 
-    }
-  }
-
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true);
-
-  lcd.setCursor(0, 0);
-  lcd.print("Nivel ");
-  lcd.print(level);
-  lcd.setCursor(0, 1);
-  lcd.print("Timp: ");
-  lcd.print(currentTime);
-  lcd.print(" sec");
-}
-
-
-
-void updateTimer() {
-  if (millis() - lastUpdateTime >= timerInterval) {
-    lastUpdateTime = millis();
-    if (currentTime > 0) {
-      currentTime--;
-      lcd.setCursor(0, 1);
-      lcd.print("Timp: ");
-      lcd.print(currentTime);
-      lcd.print(" sec ");
-    } else 
-    {
-      printSadFace();
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Timp expirat!");
-      lcd.setCursor(0, 1);
-      lcd.print("Reincearca!");
-      delay(2000);
-      resetGame(); 
-    }
-  }
-}
-
 void Move_in_the_maze() {
-  if (game_won) return;
+  if (game_won) return; // Oprește mutările dacă jocul e câștigat
 
   xValue = analogRead(PIN_HORIZONTAL);
   yValue = analogRead(PIN_VERTICAL);
@@ -674,254 +597,295 @@ void Move_in_the_maze() {
   int new_col = cursor_col;
 
 
- if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) {
+ if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) { // Stânga → Sus
     new_row--;
-  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { 
+  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { // Sus → Dreapta
     new_col++;
-  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { 
+  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { // Dreapta → Jos
     new_row++;
-  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { 
+  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { // Jos → Stânga
     new_col--;
   }
 
+  // Actualizăm poziția doar dacă s-a schimbat
   if (new_row != cursor_row || new_col != cursor_col) {
-    CurrentState[cursor_row][cursor_col] = 0;
-    lc.setLed(0, cursor_row, cursor_col, false); 
+    // Stingem LED-ul de pe poziția curentă
+    CurrentState[cursor_row][cursor_col] = 0; // Deactivăm LED-ul curent
+    lc.setLed(0, cursor_row, cursor_col, false); // Aprindem LED-ul direct
 
-    CurrentState[new_row][new_col] = 1; 
-    lc.setLed(0, new_row, new_col, true); 
+    // Aprindem LED-ul pe noua poziție
+    CurrentState[new_row][new_col] = 1; // Activăm LED-ul pe noua poziție
+    lc.setLed(0, new_row, new_col, true); // Aprindem LED-ul direct
 
+    // Actualizăm cursorul
     cursor_row = new_row;
     cursor_col = new_col;
+    // Aprindem și LED-ul de pe noua poziție
     CurrentState[cursor_row][cursor_col] = 1;
   }
 
- if (cursor_row == 1 && cursor_col == 7) {
-    GameWon();
-  }
-}
-
-
-void GameWon()
-{
- game_won = true;
+  // Verifică dacă poziția curentă este cea finală
+  if (cursor_row == 1 && cursor_col == 7) {
+    game_won = true;
+    Serial.println("Felicitări, ai câștigat!");
+    // Afișăm mesajul pe LCD
     lcd.clear();
-    lcd.setCursor(0, 0); 
+    lcd.setCursor(0, 0); // Setează cursorul la începutul liniei 0
     lcd.print("Felicitari!");
     delay(1000);
-    lcd.setCursor(0, 1); 
-    lcd.print("Nivel complet!");
+    lcd.setCursor(0, 1); // Linia 1
+    lcd.print("Ai reusit!");
 
-    printSmileFace();
-
-     delay(4000); 
-     
-    if (level < 3) 
-    {
-      level++; 
-      resetGame();
-    } 
-    else if(level==3) 
-    {
-      gameOver=true;
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Ai castigat!");
-      lcd.setCursor(0, 1);
-      lcd.print("Misca joystick");
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            lc.setLed(0, row, col, true);  // Aprinde LED-ul pe fiecare poziție
+        }
     }
-}
+  }
 
-void printSmileFace()
-{
-  lc.setLed(0, 1, 7, false);
-    const int smileFaceCoords[][2] = {
-        {0, 2}, {0, 3}, {0, 4}, {0, 5},
-        {1, 1}, {1, 6},
-        {2, 0}, {2, 2}, {2, 5}, {2, 7},
-        {3, 0}, {3, 7},
-        {4, 0}, {4, 2}, {4, 5}, {4, 7},
-        {5, 0}, {5, 3}, {5, 4}, {5, 7},
-        {6, 1}, {6, 6},
-        {7, 2}, {7, 3}, {7, 4}, {7, 5}
-    };
-    for (const auto& coord : smileFaceCoords)
-    {
-        lc.setLed(0, coord[0], coord[1], true);
-    }
-}
-
-void printSadFace()
-{
-   lc.setLed(0, 1, 7, false);
-    const int smileFaceCoords[][2] = {
-        {0, 2}, {0, 3}, {0, 4}, {0, 5},
-        {1, 1}, {1, 6},
-        {2, 0}, {2, 2}, {2, 5}, {2, 7},
-        {3, 0}, {3, 7},
-        {4, 0}, {4, 2}, {4, 3}, {4, 4}, {4, 5}, {4, 7},
-        {5, 0},  {5, 7},
-        {6, 1}, {6, 6},
-        {7, 2}, {7, 3}, {7, 4}, {7, 5}
-    };
-    for (const auto& coord : smileFaceCoords)
-    {
-        lc.setLed(0, coord[0], coord[1], true);
-    }
 }
 
 void mazeLoop() {
-  if (gameOver) 
-  {
-    xValue = analogRead(JOYSTICK_X);
-    yValue = analogRead(JOYSTICK_Y);
-    buttonPressed = digitalRead(JOYSTICK_BUTTON) == LOW;
-
-    if (xValue < 450 || xValue > 570 || yValue < 450 || yValue > 570 || buttonPressed) 
-    {
-      gameOver = false; 
-      level = 1;         
-      resetGame();       
-    }
-    return; 
-  }
-  updateTimer();
   Move_in_the_maze();
-  delay(200); 
+  delay(200); // Întârziere pentru control mai precis
 }
 
 #pragma endregion Maze
 
 #pragma region SNAKE
 
-// Enumeration for directions
-enum Direction { UP, DOWN, LEFT, RIGHT };
+extern LiquidCrystal lcd;
 
-struct Position {
-    int x, y;
+const int JOYSTICK_X_PIN = A0;
+const int JOYSTICK_Y_PIN = A1;
+
+const short MIN_DRAW_WAIT = 60;
+
+bool left_just_pressed = false;
+bool right_just_pressed = false;
+bool up_just_pressed = false;
+bool down_just_pressed = false;
+
+struct point_t {
+  char x;
+  char y;
 };
 
-Position snake[SNAKE_MAX_LENGTH];
-Position food;
-int snake_length = SNAKE_START_LENGTH;
-bool snake_alive = true;
-bool snake_game_active = false;
-Direction snake_direction = Direction::UP;
+struct snake_node_t {
+  struct snake_node_t *next;
+  struct snake_node_t *prev;
+  struct point_t pos;
+};
 
-// Function to check if food is generated on the snake's body
-bool isFoodOnSnake() {
-    for (int i = 0; i < snake_length; i++) {
-        if (snake[i].x == food.x && snake[i].y == food.y) {
-            return true;
-        }
+enum Direction {
+  LEFT = 1,
+  DOWN = LEFT << 1,
+  RIGHT = LEFT << 2,
+  UP = LEFT << 3,
+};
+
+struct snake_node_t* snake_head;
+Direction curr_direction;
+struct point_t apple_pos;
+
+void generate_apple() {
+  apple_pos.x = random(BOARD_WIDTH);
+  apple_pos.y = random(BOARD_HEIGHT);
+}
+
+void init_character(byte* character) {
+  for(int i = 0; i < SECTOR_HEIGHT; i++) {
+  character[i] = B00000;
+  }
+}
+
+struct snake_node_t* add_snake_part() {
+  struct snake_node_t* new_part = (struct snake_node_t*) malloc(sizeof(struct snake_node_t));
+  struct snake_node_t* last = snake_head->next;
+  snake_head->next = new_part;
+  last->prev = new_part;
+  new_part->next = last;
+  new_part->prev = snake_head;
+  return new_part;
+}
+
+
+void move_snake() {
+  struct point_t last_pos = snake_head->pos;
+  struct snake_node_t* curr_node = snake_head->prev;
+
+  //Move head
+  switch(curr_direction) {
+    case LEFT:
+      if(snake_head->pos.x == 0) {
+        snake_head->pos.x = BOARD_WIDTH - 1;
+      } else {
+        snake_head->pos.x--;
+      }
+      break;
+    case DOWN:
+      if(snake_head->pos.y == (BOARD_HEIGHT - 1)) {
+        snake_head->pos.y = 0;
+      } else {
+        snake_head->pos.y++;
+      }
+      break;
+    case RIGHT:
+      if(snake_head->pos.x == (BOARD_WIDTH - 1)) {
+        snake_head->pos.x = 0;
+      } else {
+        snake_head->pos.x++;
+      }
+      break;
+    case UP:
+      if(snake_head->pos.y == 0) {
+        snake_head->pos.y = BOARD_HEIGHT - 1;
+      } else {
+        snake_head->pos.y--;
+      }
+      break;
+  }
+
+  //Move body
+  while(curr_node != snake_head) {
+    struct point_t temp = curr_node->pos;
+    curr_node->pos = last_pos;
+    last_pos = temp;
+    curr_node = curr_node->prev;
+  }
+}
+
+void draw_snake() {
+  byte sectors[SECTORS_PER_ROW][SECTORS_PER_COLUMN][SECTOR_HEIGHT];
+  for(int i = 0; i < SECTORS_PER_COLUMN; i++) {
+    for(int j = 0; j < SECTORS_PER_ROW; j++) {
+      init_character(sectors[j][i]);
     }
-    return false;
+  }
+
+  //Apple drawing
+  byte sec_x = apple_pos.x / SECTOR_WIDTH;
+  byte sec_y = apple_pos.y / SECTOR_HEIGHT;
+  sectors[sec_x][sec_y][apple_pos.y - (sec_y * SECTOR_HEIGHT)] |= (B10000 >> (apple_pos.x - (sec_x * SECTOR_WIDTH)));
+
+  struct snake_node_t* curr_node = snake_head;
+
+  do{
+    struct point_t p = curr_node->pos;
+    sec_x = p.x / SECTOR_WIDTH;
+    sec_y = p.y / SECTOR_HEIGHT;
+    sectors[sec_x][sec_y][p.y - (sec_y * SECTOR_HEIGHT)] |= (B10000 >> (p.x - (sec_x * SECTOR_WIDTH)));
+    curr_node = curr_node->prev;
+  }while(curr_node != snake_head);
+
+  byte curr_sec = 0;
+
+  for(int i = 0; i < SECTORS_PER_COLUMN; i++) {
+    for(int j = 0; j < SECTORS_PER_ROW; j++) {
+      bool draw_sec = false;
+      for(int k = 0; k < SECTOR_HEIGHT; k++) {
+        if(sectors[j][i][k]) {
+          draw_sec = true;
+          break;
+        }
+      }
+
+      if(draw_sec) {
+        lcd.createChar(curr_sec, sectors[j][i]);
+        lcd.setCursor(j, i);
+        lcd.write(byte(curr_sec));
+        curr_sec++;
+      } else {
+        lcd.setCursor(j, i);
+        lcd.write(" ");
+      }
+    }
+  }
 }
 
 void snakeSetup() {
-    randomSeed(analogRead(0)); // Seed for random number generation
-    food.x = random(1, SCREEN_COLS - 1);
-    food.y = random(1, SCREEN_ROWS - 1);
-    for (int i = 0; i < snake_length; i++) {
-        snake[i].x = SCREEN_COLS / 2;
-        snake[i].y = SCREEN_ROWS / 2 + i;
-    }
-    snake_direction = Direction::UP;
-    snake_game_active = true;
-    snake_alive = true;
+  randomSeed(analogRead(0));
+  byte character[SECTOR_HEIGHT];
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+  snake_head = (struct snake_node_t*) malloc(sizeof(struct snake_node_t));
+  snake_head->pos.x = 5;
+  snake_head->pos.y = 5;
+  snake_head->prev = snake_head;
+  snake_head->next = snake_head;
+  struct snake_node_t* body1 = add_snake_part();
+  struct snake_node_t* body2 = add_snake_part();
+  body1->pos.x = 4;
+  body1->pos.y = 5;
+  body2->pos.x = 3;
+  body2->pos.y = 5;
+  curr_direction = RIGHT;
+  generate_apple();
+  draw_snake();
 }
 
-void drawSnakeGame() {
-    lcd.clear();
-    for (int i = 0; i < snake_length; i++) {
-        lcd.setCursor(snake[i].x, snake[i].y);
-        lcd.write(SNAKE_SYMBOL);
+short time_since_last_draw = 0;
+unsigned long last_update = 0;
+
+
+void update_input() {
+    int xValue = analogRead(JOYSTICK_X_PIN);
+    int yValue = analogRead(JOYSTICK_Y_PIN);
+
+    right_just_pressed = (xValue < 300);  
+    left_just_pressed = (xValue > 700); 
+    
+    down_just_pressed = (yValue < 300);   
+    up_just_pressed = (yValue > 700);   
+
+    if (left_just_pressed && curr_direction != RIGHT) {
+        curr_direction = LEFT;
+    } else if (right_just_pressed && curr_direction != LEFT) {
+        curr_direction = RIGHT;
+    } else if (up_just_pressed && curr_direction != DOWN) {
+        curr_direction = UP;
+    } else if (down_just_pressed && curr_direction != UP) {
+        curr_direction = DOWN;
     }
-    lcd.setCursor(food.x, food.y);
-    lcd.write(FOOD_SYMBOL);
 }
 
-void moveSnake() {
-    Position next = snake[0];
-
-    // Determine the next position of the snake
-    switch (snake_direction) {
-        case Direction::UP:    next.y--; break;
-        case Direction::DOWN:  next.y++; break;
-        case Direction::LEFT:  next.x--; break;
-        case Direction::RIGHT: next.x++; break;
-    }
-
-    // Check for collision with screen boundaries
-    if (next.x < 0) next.x = SCREEN_COLS - 1;
-    if (next.y < 0) next.y = SCREEN_ROWS - 1;
-    if (next.x >= SCREEN_COLS) next.x = 0;
-    if (next.y >= SCREEN_ROWS) next.y = 0;
-
-   // Check for collision with the snake's body
-    for (int i = 0; i < snake_length; i++) {
-        if (snake[i].x == next.x && snake[i].y == next.y) {
-            snake_alive = false;
-            return;
+bool check_collision() {
+    struct snake_node_t* curr_node = snake_head->prev;
+    while (curr_node != snake_head) {
+        if (snake_head->pos.x == curr_node->pos.x && snake_head->pos.y == curr_node->pos.y) {
+            return true;
         }
+        curr_node = curr_node->prev;
     }
-
-    // Move the snake
-    for (int i = snake_length - 1; i > 0; i--) {
-        snake[i] = snake[i - 1];
-    }
-    snake[0] = next;
-
-    // Check if the snake eats the food
-    if (snake[0].x == food.x && snake[0].y == food.y) {
-        if (snake_length < SNAKE_MAX_LENGTH) {
-            snake[snake_length] = snake[snake_length - 1];
-            snake_length++;
-        }
-        // Respawn the food
-        do {
-            food.x = random(1, SCREEN_COLS - 1);
-            food.y = random(1, SCREEN_ROWS - 1);
-        } while (isFoodOnSnake());
-    }
+    return false; 
 }
+
 
 void snakeLoop() {
-    if (!snake_game_active) return;
+    update_input();
 
-    xValue = analogRead(PIN_HORIZONTAL);
-    yValue = analogRead(PIN_VERTICAL);
+    unsigned long time = millis();
+    unsigned long elapsed = time - last_update;
+    last_update = time;
+    time_since_last_draw += elapsed;
 
-    // Read joystick direction and update snake's direction
-    Direction new_direction = snake_direction;
-    if (xValue < 450) new_direction = Direction::UP;
-    else if (xValue > 570) new_direction = Direction::DOWN;
-    else if (yValue < 450) new_direction = Direction::LEFT;
-    else if (yValue > 570) new_direction = Direction::RIGHT;
+    if (time_since_last_draw >= MIN_DRAW_WAIT) {
+        move_snake();
 
-    // Check if the new direction is valid
-    if (!((snake_direction == Direction::UP && new_direction == Direction::DOWN) ||
-          (snake_direction == Direction::DOWN && new_direction == Direction::UP) ||
-          (snake_direction == Direction::LEFT && new_direction == Direction::RIGHT) ||
-          (snake_direction == Direction::RIGHT && new_direction == Direction::LEFT))) {
-        snake_direction = new_direction;
-    }
-
-    if (snake_alive) {
-        moveSnake();
-        drawSnakeGame();
-    } else {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Game Over");
-
-        // Reset the game after Game Over
-        if (digitalRead(PIN_SWITCH) == LOW) { 
-            snakeSetup();
+        if (check_collision()) {
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Game Over!");
+            while (true); 
         }
-    }
 
-    delay(200);// Delay to control game speed
+        if (snake_head->pos.x == apple_pos.x && snake_head->pos.y == apple_pos.y) {
+            generate_apple();
+            add_snake_part();
+        }
+        draw_snake();
+        time_since_last_draw = 0;
+    }
 }
 
 #pragma endregion SNAKE
