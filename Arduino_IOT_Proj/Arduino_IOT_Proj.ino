@@ -903,14 +903,14 @@ boolean gameOver = false;
 int difficulty = 0;
 boolean needUpdate = false;
 
-void setup() {
+void hangmanSetup() {
   lcd.begin(16, 2);
-  pinMode(SW_pin, INPUT_PULLUP);
+  pinMode(PIN_SWITCH, INPUT_PULLUP);
   randomSeed(analogRead(A2));
   selectDifficulty();
 }
 
-void loop() {
+void hangmanLoop() {
   if(!gameOver) {
     if(handleJoystick() || needUpdate) {
       updateDisplay();
@@ -919,7 +919,7 @@ void loop() {
     checkButton();
     delay(50);
   } else {
-    if(digitalRead(SW_pin) == LOW) {
+    if(digitalRead(PIN_SWITCH) == LOW) {
       delay(200);
       selectDifficulty();
     }
@@ -932,8 +932,8 @@ void selectDifficulty() {
   difficulty = 0;
   updateDifficultyDisplay();
   
-  while(digitalRead(SW_pin) == HIGH) {
-    int yValue = analogRead(Y_pin);
+  while(digitalRead(PIN_SWITCH) == HIGH) {
+    int yValue = analogRead(PIN_VERTICAL);
     if(yValue > 800) {
       difficulty = (difficulty + 1) % 3;
       updateDifficultyDisplay();
@@ -978,7 +978,7 @@ void startGame() {
 }
 
 boolean handleJoystick() {
-  int xValue = analogRead(X_pin);
+  int xValue = analogRead(PIN_HORIZONTAL);
   boolean changed = false;
   
   if(xValue > 800) {
@@ -997,8 +997,8 @@ boolean handleJoystick() {
   return changed;
 }
 
-void checkButton() {
-  if(digitalRead(SW_pin) == LOW) {
+void hangmanCheckButton() {
+  if(digitalRead(PIN_SWITCH) == LOW) {
     checkLetter();
     needUpdate = true;
     delay(200);
