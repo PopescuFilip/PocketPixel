@@ -21,6 +21,10 @@
 #define SCREEN_COLS 16
 #define SCREEN_ROWS 2
 
+#define EASY 1
+#define MEDIUM 2
+#define HARD 3
+
 #pragma region SIDESCROLLER_CONST
 
 #define PIN_AUTOPLAY 1
@@ -98,7 +102,7 @@ void setup()
 
 void loop()
 {
-  sidescrollerMainLoop();
+  sidescrollerMainLoop(MEDIUM);
   //snakeLoop();
 }
 
@@ -189,7 +193,22 @@ void initializeGraphics(){
   }
 }
 
-void sidescrollerMainLoop(){
+int getEmptyTerrainLength(int difficulty)
+{
+  switch (difficulty)
+  {
+    case EASY:
+      return 15;
+    case MEDIUM:
+      return 10;
+    case HARD:
+      return 5;
+    default:
+      return 10;
+  }
+}
+
+void sidescrollerMainLoop(int difficulty) {
 
   static byte heroPos = HERO_POSITION_RUN_LOWER_1;
   static byte newTerrainType = TERRAIN_EMPTY;
@@ -198,6 +217,8 @@ void sidescrollerMainLoop(){
   static bool blink = false;
   static unsigned int distance = 0;
   
+  const int baseEmptyTerrainLength = getEmptyTerrainLength(difficulty);
+
   checkButton();
 
   if (!playing) {
@@ -230,7 +251,7 @@ void sidescrollerMainLoop(){
       newTerrainDuration = 2 + random(10);
     } else {
       newTerrainType = TERRAIN_EMPTY;
-      newTerrainDuration = 10 + random(10);
+      newTerrainDuration = baseEmptyTerrainLength + random(5);
     }
   }
     
