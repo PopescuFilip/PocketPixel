@@ -121,7 +121,7 @@ void loop()
   else
   {
     //sidescrollerMainLoop();
-    //mazeLoop();
+    mazeLoop();
     //snakeLoop();
   }
 }
@@ -516,28 +516,29 @@ void checkButton()
 
 #pragma region Maze
 
+// Joystick Input
+const int JOYSTICK_X = A0; // Pinul analogic pentru axa X
+const int JOYSTICK_Y = A1; // Pinul analogic pentru axa Y
+const int JOYSTICK_BUTTON = 9; // Pinul digital pentru butonul joystick-ului
+
+
 bool buttonPressed = false;
-
-
-int cursor_col = 0; // Coloana inițială
-int cursor_row = 2; // Rândul inițial
-
-// Matricea stării curente a LED-urilor
+int cursor_col = 0; 
+int cursor_row = 2; 
 int CurrentState[8][8] = {0};
 
-bool game_won = false; // Indicator pentru câștig
+bool game_won = false; 
+bool gameOver=false;
 
-void mazeSetup()
-{
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 15);
-  lc.clearDisplay(0);
-  
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
-}
+int level=1;
+int easyTime=30;
+int mediumTime=20;
+int hardTime=10;
+int currentTime;
 
-// Matrici de mutare
+unsigned long lastUpdateTime = 0; 
+unsigned long timerInterval = 1000; 
+
 int Move_up[8][8] = {
   {0,0,0,0,0,0,0,0},
   {1,1,1,0,1,0,1,1},
@@ -586,8 +587,85 @@ int Move_right[8][8] = {
 };
 
 
+
+void mazeSetup()
+{
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 15);
+  lc.clearDisplay(0);
+  
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true); 
+
+  lcd.begin(16, 2);
+  resetGame(); 
+}
+
+void resetGame() 
+{
+  if(gameOver)
+  {
+    return;
+  }
+  lcd.clear();
+  cursor_col = 0; 
+  cursor_row = 2;  
+  game_won = false; 
+
+  if (level == 1) {
+    currentTime = easyTime;
+  } else if (level == 2) {
+    currentTime = mediumTime;
+  } else if (level == 3) {
+    currentTime = hardTime;
+  }
+
+  lc.clearDisplay(0); 
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      CurrentState[i][j] = 0; 
+    }
+  }
+
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true);
+
+  lcd.setCursor(0, 0);
+  lcd.print("Nivel ");
+  lcd.print(level);
+  lcd.setCursor(0, 1);
+  lcd.print("Timp: ");
+  lcd.print(currentTime);
+  lcd.print(" sec");
+}
+
+
+
+void updateTimer() {
+  if (millis() - lastUpdateTime >= timerInterval) {
+    lastUpdateTime = millis();
+    if (currentTime > 0) {
+      currentTime--;
+      lcd.setCursor(0, 1);
+      lcd.print("Timp: ");
+      lcd.print(currentTime);
+      lcd.print(" sec ");
+    } else 
+    {
+      printSadFace();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Timp expirat!");
+      lcd.setCursor(0, 1);
+      lcd.print("Reincearca!");
+      delay(2000);
+      resetGame(); 
+    }
+  }
+}
+
 void Move_in_the_maze() {
-  if (game_won) return; // Oprește mutările dacă jocul e câștigat
+  if (game_won) return;
 
   xValue = analogRead(PIN_HORIZONTAL);
   yValue = analogRead(PIN_VERTICAL);
@@ -596,57 +674,120 @@ void Move_in_the_maze() {
   int new_col = cursor_col;
 
 
- if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) { // Stânga → Sus
+ if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) {
     new_row--;
-  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { // Sus → Dreapta
+  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { 
     new_col++;
-  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { // Dreapta → Jos
+  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { 
     new_row++;
-  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { // Jos → Stânga
+  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { 
     new_col--;
   }
 
-  // Actualizăm poziția doar dacă s-a schimbat
   if (new_row != cursor_row || new_col != cursor_col) {
-    // Stingem LED-ul de pe poziția curentă
-    CurrentState[cursor_row][cursor_col] = 0; // Deactivăm LED-ul curent
-    lc.setLed(0, cursor_row, cursor_col, false); // Aprindem LED-ul direct
+    CurrentState[cursor_row][cursor_col] = 0;
+    lc.setLed(0, cursor_row, cursor_col, false); 
 
-    // Aprindem LED-ul pe noua poziție
-    CurrentState[new_row][new_col] = 1; // Activăm LED-ul pe noua poziție
-    lc.setLed(0, new_row, new_col, true); // Aprindem LED-ul direct
+    CurrentState[new_row][new_col] = 1; 
+    lc.setLed(0, new_row, new_col, true); 
 
-    // Actualizăm cursorul
     cursor_row = new_row;
     cursor_col = new_col;
-    // Aprindem și LED-ul de pe noua poziție
     CurrentState[cursor_row][cursor_col] = 1;
   }
 
-  // Verifică dacă poziția curentă este cea finală
-  if (cursor_row == 1 && cursor_col == 7) {
-    game_won = true;
-    Serial.println("Felicitări, ai câștigat!");
-    // Afișăm mesajul pe LCD
+ if (cursor_row == 1 && cursor_col == 7) {
+    GameWon();
+  }
+}
+
+
+void GameWon()
+{
+ game_won = true;
     lcd.clear();
-    lcd.setCursor(0, 0); // Setează cursorul la începutul liniei 0
+    lcd.setCursor(0, 0); 
     lcd.print("Felicitari!");
     delay(1000);
-    lcd.setCursor(0, 1); // Linia 1
-    lcd.print("Ai reusit!");
+    lcd.setCursor(0, 1); 
+    lcd.print("Nivel complet!");
 
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            lc.setLed(0, row, col, true);  // Aprinde LED-ul pe fiecare poziție
-        }
+    printSmileFace();
+
+     delay(4000); 
+     
+    if (level < 3) 
+    {
+      level++; 
+      resetGame();
+    } 
+    else if(level==3) 
+    {
+      gameOver=true;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ai castigat!");
+      lcd.setCursor(0, 1);
+      lcd.print("Misca joystick");
     }
-  }
+}
 
+void printSmileFace()
+{
+  lc.setLed(0, 1, 7, false);
+    const int smileFaceCoords[][2] = {
+        {0, 2}, {0, 3}, {0, 4}, {0, 5},
+        {1, 1}, {1, 6},
+        {2, 0}, {2, 2}, {2, 5}, {2, 7},
+        {3, 0}, {3, 7},
+        {4, 0}, {4, 2}, {4, 5}, {4, 7},
+        {5, 0}, {5, 3}, {5, 4}, {5, 7},
+        {6, 1}, {6, 6},
+        {7, 2}, {7, 3}, {7, 4}, {7, 5}
+    };
+    for (const auto& coord : smileFaceCoords)
+    {
+        lc.setLed(0, coord[0], coord[1], true);
+    }
+}
+
+void printSadFace()
+{
+   lc.setLed(0, 1, 7, false);
+    const int smileFaceCoords[][2] = {
+        {0, 2}, {0, 3}, {0, 4}, {0, 5},
+        {1, 1}, {1, 6},
+        {2, 0}, {2, 2}, {2, 5}, {2, 7},
+        {3, 0}, {3, 7},
+        {4, 0}, {4, 2}, {4, 3}, {4, 4}, {4, 5}, {4, 7},
+        {5, 0},  {5, 7},
+        {6, 1}, {6, 6},
+        {7, 2}, {7, 3}, {7, 4}, {7, 5}
+    };
+    for (const auto& coord : smileFaceCoords)
+    {
+        lc.setLed(0, coord[0], coord[1], true);
+    }
 }
 
 void mazeLoop() {
+  if (gameOver) 
+  {
+    xValue = analogRead(JOYSTICK_X);
+    yValue = analogRead(JOYSTICK_Y);
+    buttonPressed = digitalRead(JOYSTICK_BUTTON) == LOW;
+
+    if (xValue < 450 || xValue > 570 || yValue < 450 || yValue > 570 || buttonPressed) 
+    {
+      gameOver = false; 
+      level = 1;         
+      resetGame();       
+    }
+    return; 
+  }
+  updateTimer();
   Move_in_the_maze();
-  delay(200); // Întârziere pentru control mai precis
+  delay(200); 
 }
 
 #pragma endregion Maze
