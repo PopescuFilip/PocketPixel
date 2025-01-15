@@ -889,3 +889,169 @@ void snakeLoop() {
 }
 
 #pragma endregion SNAKE
+
+#pragma region HANGMAN
+
+String easyWords[] = {"CASA", "MASA", "PARA", "MARE", "LUNA", "APA", "FOC", "PANA", "VACA", "MAMA", "TATA", "TARE", "COPT"};
+String mediumWords[] = {"PISICA", "MASINA", "SCOALA", "STRADA", "FRUNZA", "PUTERE", "OPOSUM", "MUSTATA"};
+String hardWords[] = {"CALENDAR", "TELEFON", "COMPUTER", "BIBLIOTECA", "CRACIUN", "FACULTATE", "FLORARIE"};
+String currentWord;
+String displayWord;
+char currentLetter = 'A';
+int lives = 6;
+boolean gameOver = false;
+int difficulty = 0;
+boolean needUpdate = false;
+
+void setup() {
+  lcd.begin(16, 2);
+  pinMode(SW_pin, INPUT_PULLUP);
+  randomSeed(analogRead(A2));
+  selectDifficulty();
+}
+
+void loop() {
+  if(!gameOver) {
+    if(handleJoystick() || needUpdate) {
+      updateDisplay();
+      needUpdate = false;
+    }
+    checkButton();
+    delay(50);
+  } else {
+    if(digitalRead(SW_pin) == LOW) {
+      delay(200);
+      selectDifficulty();
+    }
+  }
+}
+
+void selectDifficulty() {
+  lcd.clear();
+  lcd.print("Dificultate:");
+  difficulty = 0;
+  updateDifficultyDisplay();
+  
+  while(digitalRead(SW_pin) == HIGH) {
+    int yValue = analogRead(Y_pin);
+    if(yValue > 800) {
+      difficulty = (difficulty + 1) % 3;
+      updateDifficultyDisplay();
+      delay(200);
+    }
+    else if(yValue < 200) {
+      difficulty = (difficulty - 1 + 3) % 3;
+      updateDifficultyDisplay();
+      delay(200);
+    }
+  }
+  delay(500);
+  startGame();
+}
+
+void updateDifficultyDisplay() {
+  lcd.setCursor(0, 1);
+  switch(difficulty) {
+    case 0: lcd.print("Usor          "); break;
+    case 1: lcd.print("Mediu         "); break;
+    case 2: lcd.print("Greu          "); break;
+  }
+}
+
+void startGame() {
+  int randomIndex = random(4);
+  switch(difficulty) {
+    case 0: currentWord = easyWords[randomIndex]; break;
+    case 1: currentWord = mediumWords[randomIndex]; break;
+    case 2: currentWord = hardWords[randomIndex]; break;
+  }
+  
+  displayWord = "";
+  for(int i = 0; i < currentWord.length(); i++) {
+    displayWord += "_";
+  }
+  
+  lives = 6;
+  gameOver = false;
+  currentLetter = 'A';
+  needUpdate = true;
+}
+
+boolean handleJoystick() {
+  int xValue = analogRead(X_pin);
+  boolean changed = false;
+  
+  if(xValue > 800) {
+    currentLetter++;
+    if(currentLetter > 'Z') currentLetter = 'A';
+    changed = true;
+    delay(200);
+  }
+  else if(xValue < 200) {
+    currentLetter--;
+    if(currentLetter < 'A') currentLetter = 'Z';
+    changed = true;
+    delay(200);
+  }
+  
+  return changed;
+}
+
+void checkButton() {
+  if(digitalRead(SW_pin) == LOW) {
+    checkLetter();
+    needUpdate = true;
+    delay(200);
+  }
+}
+
+void checkLetter() {
+  boolean found = false;
+  for(int i = 0; i < currentWord.length(); i++) {
+    if(currentWord[i] == currentLetter) {
+      displayWord[i] = currentLetter;
+      found = true;
+    }
+  }
+  
+  if(!found) {
+    lives--;
+    if(lives <= 0) {
+      gameOver = true;
+      showGameOver();
+    }
+  }
+  
+  if(displayWord.equals(currentWord)) {
+    gameOver = true;
+    showWin();
+  }
+}
+
+void updateDisplay() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Lives: ");
+  lcd.print(lives);
+  lcd.print(" ");
+  lcd.print(currentLetter);
+  
+  lcd.setCursor(0, 1);
+  lcd.print(displayWord);
+}
+
+void showGameOver() {
+  lcd.clear();
+  lcd.print("Game Over!");
+  lcd.setCursor(0, 1);
+  lcd.print(currentWord);
+}
+
+void showWin() {
+  lcd.clear();
+  lcd.print("Ai castigat!");
+  lcd.setCursor(0, 1);
+  lcd.print(currentWord);
+}
+
+#pragma endregion HANGMAN
