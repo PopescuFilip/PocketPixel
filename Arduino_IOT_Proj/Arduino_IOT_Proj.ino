@@ -25,6 +25,9 @@
 #define MEDIUM 2
 #define HARD 3
 
+#define WIN 0
+#define LOSE 1
+
 #define RUNNER_OPTION 0
 #define MAZE_OPTION 1
 #define SNAKE_OPTION 2
@@ -109,7 +112,7 @@ void setup()
 {
   lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
   Serial.begin(9600);
-  pinMode(PIN_SWITCH, INPUT);
+  pinMode(PIN_SWITCH, INPUT_PULLUP);
   pinMode(PIN_HORIZONTAL, INPUT);
   pinMode(PIN_VERTICAL, INPUT);
 
@@ -214,7 +217,7 @@ void checkJoystickDown()
 void checkJoystickPush()
 {
   int joystickState = digitalRead(PIN_SWITCH);
-  if (joystickState == HIGH && lastJoystickPushState == false)
+  if (joystickState == LOW && lastJoystickPushState == false)
   {
     joystickPushed = true;
     lastJoystickPushState = true;
