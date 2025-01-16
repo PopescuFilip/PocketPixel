@@ -1,5 +1,6 @@
 #include<LiquidCrystal.h>
 #include<LedControl.h>
+#include <avr/pgmspace.h>  // Required for PROGMEM
 
 #pragma region CONSTANTS
 
@@ -29,10 +30,13 @@
 #define LOSE 1
 
 #define RUNNER_OPTION 0
-#define MAZE_OPTION 1
-#define SNAKE_OPTION 2
-#define HANGMAN_OPTION 3
+#define SNAKE_OPTION 1
+#define HANGMAN_OPTION 2
+#define MAZE_OPTION 3
 #define ALL_OPTION 4
+
+#define MAIN_MENU_OPTION 0
+#define TRY_AGAIN_OPTION 1
 
 #pragma region SIDESCROLLER_CONST
 
@@ -99,10 +103,15 @@ static bool joystickDown = false;
 static bool lastJoystickDownState = false;
 
 static bool showMenu = true;
+static bool showEndMenu = false;
+static bool chosenEndMenu = false;
 int menuOption = 0;
 int printChosenOption = false;
 const int numOptions = 5;
 String menuItems[] = {"Runner", "Snake", "Hangman", "Maze", "All"};
+const int endGameNumOptions = 2;
+String endGameMenuItems[] = {"Main menu", "Try again"};
+int lastGame;
 
 // LCD
 LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
@@ -117,6 +126,7 @@ void setup()
   pinMode(PIN_HORIZONTAL, INPUT);
   pinMode(PIN_VERTICAL, INPUT);
 
+  randomSeed(analogRead(0));
   mazeSetup();
   snakeSetup();
 }
@@ -125,18 +135,44 @@ void setup()
 
 void loop()
 {
-  if (showMenu)
+  if (showEndMenu)
+  {
+    checkEndMenuState();
+    displayEndMenu();
+    delay(250);
+  }
+  else if (showMenu)
   {
     checkMenuState();
     displayMenu();
     delay(250);
   }
+  else if (chosenEndMenu)
+  {
+    if(menuOption == MAIN_MENU_OPTION)
+      setShowMenu();
+    else
+      menuOption = lastGame;
+    chosenEndMenu = false;
+  }
   else
   {
     handleSelectedOption();
   }
-  //sidescrollerMainLoop(MEDIUM);
-  //snakeLoop(HARD);
+}
+
+void setShowEndGameMenu() {
+  showEndMenu = true;
+  showMenu = false;
+  menuOption = 0;
+  chosenEndMenu = false;
+}
+
+void setShowMenu() {
+  showEndMenu = false;
+  showMenu = true;
+  menuOption = 0;
+  chosenEndMenu = false;
 }
 
 void handleSelectedOption() {
@@ -147,9 +183,8 @@ void handleSelectedOption() {
     lcd.print(F("You selected"));
     lcd.setCursor(0, 1);
     lcd.print(menuItems[menuOption]);
-    lcd.clear();
-    printChosenOption = false;
     delay(1000);
+    lcd.clear();
   }
 
   switch (menuOption)
@@ -161,15 +196,46 @@ void handleSelectedOption() {
       snakeLoop(EASY);
       break;
     case HANGMAN_OPTION:
+      if (printChosenOption)
+        startGameHangman(EASY);
       hangmanLoop(EASY);
       break;
     case MAZE_OPTION:
+      if (printChosenOption)
+        mazeStart(EASY);
       mazeLoop();
       break;
     case ALL_OPTION:
+    showMenu = true;
       break;
     default:
       break;
+  }
+  printChosenOption = false;
+}
+
+void checkEndMenuState() {
+  checkJoystickPush();
+  if (joystickPushed) {
+    showEndMenu = false;
+    chosenEndMenu = true;
+    return;
+  }
+
+  checkJoystickUp();
+  checkJoystickDown();
+  if (joystickDown) {
+    menuOption = (menuOption + 1) % endGameNumOptions;
+    return;
+  }
+
+  if (joystickUp) {
+    if (menuOption == 0) {
+      menuOption = endGameNumOptions - 1;
+      return;
+    }
+
+    menuOption--;
   }
 }
 
@@ -178,6 +244,7 @@ void checkMenuState() {
   if (joystickPushed) {
     printChosenOption = true;
     showMenu = false;
+    lastGame = menuOption;
     return;
   }
 
@@ -207,6 +274,17 @@ void displayMenu() {
   // Optionally show the next option
   lcd.setCursor(0, 1);
   lcd.print(menuOption == numOptions - 1 ? menuItems[0] : menuItems[menuOption + 1]);
+}
+
+void displayEndMenu() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("> "); // Indicates the selected option
+  lcd.print(endGameMenuItems[menuOption]);
+  
+  // Optionally show the next option
+  lcd.setCursor(0, 1);
+  lcd.print(menuOption == endGameNumOptions - 1 ? endGameMenuItems[0] : endGameMenuItems[menuOption + 1]);
 }
 
 void checkJoystickUp()
@@ -413,6 +491,7 @@ void sidescrollerMainLoop(int difficulty) {
 
   if (drawHero(heroPos, terrainUpper, terrainLower, distance >> 3)) {
     playing = false; // The hero collided with something. Too bad.
+    setShowEndGameMenu();
   } else {
     //advance hero
     if (heroPos == HERO_POSITION_RUN_LOWER_2 || heroPos == HERO_POSITION_JUMP_8) {
@@ -553,27 +632,22 @@ void checkButton()
 #pragma region Maze
 
 bool buttonPressed = false;
-
-
-int cursor_col = 0; // Coloana inițială
-int cursor_row = 2; // Rândul inițial
-
-// Matricea stării curente a LED-urilor
+int cursor_col = 0; 
+int cursor_row = 2; 
 int CurrentState[8][8] = {0};
 
-bool game_won = false; // Indicator pentru câștig
+bool game_won = false; 
+bool mazeGameOver=false;
 
-void mazeSetup()
-{
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 15);
-  lc.clearDisplay(0);
-  
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true); // Aprindem LED-ul direct
-}
+int level=1;
+const int easyTime=30;
+const int mediumTime=20;
+const int hardTime=10;
+int currentTime;
 
-// Matrici de mutare
+unsigned long lastUpdateTime = 0; 
+unsigned long timerInterval = 1000; 
+
 int Move_up[8][8] = {
   {0,0,0,0,0,0,0,0},
   {1,1,1,0,1,0,1,1},
@@ -622,8 +696,149 @@ int Move_right[8][8] = {
 };
 
 
+
+void mazeSetup()
+{
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 15); 
+}
+
+void mazeStart(int difficulty)
+{
+  lc.clearDisplay(0);
+  
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true); 
+  
+  resetGame(difficulty);
+}
+
+void setLevel(int difficulty)
+{
+  if (difficulty == EASY)
+  {
+    level = 1;
+    return;
+  }
+  if (difficulty == MEDIUM)
+  {
+    level = 2;
+    return;
+  }
+  if (difficulty == HARD)
+  {
+    level = 3;
+    return;
+  }
+}
+
+void resetGame() 
+{
+  if(mazeGameOver)
+  {
+    return;
+  }
+  
+  lcd.clear();
+  cursor_col = 0; 
+  cursor_row = 2;  
+  game_won = false; 
+
+  if (level == 1) {
+    currentTime = easyTime;
+  } else if (level == 2) {
+    currentTime = mediumTime;
+  } else if (level == 3) {
+    currentTime = hardTime;
+  }
+
+  lc.clearDisplay(0); 
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      CurrentState[i][j] = 0; 
+    }
+  }
+
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true);
+
+  lcd.setCursor(0, 0);
+  lcd.print(F("Nivel "));
+  lcd.print(level);
+  lcd.setCursor(0, 1);
+  lcd.print(F("Timp: "));
+  lcd.print(currentTime);
+  lcd.print(F(" sec"));
+}
+
+void resetGame(int difficulty) 
+{
+  if(mazeGameOver)
+  {
+    return;
+  }
+  
+  setLevel(difficulty);
+  
+  lcd.clear();
+  cursor_col = 0; 
+  cursor_row = 2;  
+  game_won = false; 
+
+  if (level == 1) {
+    currentTime = easyTime;
+  } else if (level == 2) {
+    currentTime = mediumTime;
+  } else if (level == 3) {
+    currentTime = hardTime;
+  }
+
+  lc.clearDisplay(0); 
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      CurrentState[i][j] = 0; 
+    }
+  }
+
+  CurrentState[cursor_row][cursor_col] = 1;
+  lc.setLed(0, cursor_row, cursor_col, true);
+
+  lcd.setCursor(0, 0);
+  lcd.print(F("Nivel "));
+  lcd.print(level);
+  lcd.setCursor(0, 1);
+  lcd.print(F("Timp: "));
+  lcd.print(currentTime);
+  lcd.print(F(" sec"));
+}
+
+
+
+void updateTimer() {
+  if (millis() - lastUpdateTime >= timerInterval) {
+    lastUpdateTime = millis();
+    if (currentTime > 0) {
+      currentTime--;
+      lcd.setCursor(0, 1);
+      lcd.print(F("Timp: "));
+      lcd.print(currentTime);
+      lcd.print(F(" sec "));
+    } else 
+    {
+      printSadFace();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(F("Timp expirat!"));
+      lcd.setCursor(0, 1);
+      lcd.print(F("Reincearca!"));
+      delay(2000);
+      resetGame(); 
+    }
+  }
+}
+
 void Move_in_the_maze() {
-  if (game_won) return; // Oprește mutările dacă jocul e câștigat
+  if (game_won) return;
 
   xValue = analogRead(PIN_HORIZONTAL);
   yValue = analogRead(PIN_VERTICAL);
@@ -632,57 +847,111 @@ void Move_in_the_maze() {
   int new_col = cursor_col;
 
 
- if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) { // Stânga → Sus
+ if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) {
     new_row--;
-  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { // Sus → Dreapta
+  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { 
     new_col++;
-  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { // Dreapta → Jos
+  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { 
     new_row++;
-  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { // Jos → Stânga
+  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { 
     new_col--;
   }
 
-  // Actualizăm poziția doar dacă s-a schimbat
   if (new_row != cursor_row || new_col != cursor_col) {
-    // Stingem LED-ul de pe poziția curentă
-    CurrentState[cursor_row][cursor_col] = 0; // Deactivăm LED-ul curent
-    lc.setLed(0, cursor_row, cursor_col, false); // Aprindem LED-ul direct
+    CurrentState[cursor_row][cursor_col] = 0;
+    lc.setLed(0, cursor_row, cursor_col, false); 
 
-    // Aprindem LED-ul pe noua poziție
-    CurrentState[new_row][new_col] = 1; // Activăm LED-ul pe noua poziție
-    lc.setLed(0, new_row, new_col, true); // Aprindem LED-ul direct
+    CurrentState[new_row][new_col] = 1; 
+    lc.setLed(0, new_row, new_col, true); 
 
-    // Actualizăm cursorul
     cursor_row = new_row;
     cursor_col = new_col;
-    // Aprindem și LED-ul de pe noua poziție
     CurrentState[cursor_row][cursor_col] = 1;
   }
 
-  // Verifică dacă poziția curentă este cea finală
-  if (cursor_row == 1 && cursor_col == 7) {
-    game_won = true;
-    Serial.println(F("Felicitări, ai câștigat!"));
-    // Afișăm mesajul pe LCD
+ if (cursor_row == 1 && cursor_col == 7) {
+    GameWon();
+  }
+}
+
+
+void GameWon()
+{
+ game_won = true;
     lcd.clear();
-    lcd.setCursor(0, 0); // Setează cursorul la începutul liniei 0
+    lcd.setCursor(0, 0); 
     lcd.print(F("Felicitari!"));
     delay(1000);
-    lcd.setCursor(0, 1); // Linia 1
-    lcd.print(F("Ai reusit!"));
+    lcd.setCursor(0, 1); 
+    lcd.print(F("Nivel complet!"));
 
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            lc.setLed(0, row, col, true);  // Aprinde LED-ul pe fiecare poziție
-        }
+    printSmileFace();
+
+     delay(4000); 
+     
+    if (level < 3) 
+    {
+      level++; 
+      resetGame();
+    } 
+    else if(level==3) 
+    {
+      mazeGameOver=true;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(F("Ai castigat!"));
+      lcd.setCursor(0, 1);
+      lcd.print(F("Misca joystick"));
     }
-  }
+}
 
+void printSmileFace()
+{
+  lc.setLed(0, 1, 7, false);
+    const int smileFaceCoords[][2] = {
+        {0, 2}, {0, 3}, {0, 4}, {0, 5},
+        {1, 1}, {1, 6},
+        {2, 0}, {2, 2}, {2, 5}, {2, 7},
+        {3, 0}, {3, 7},
+        {4, 0}, {4, 2}, {4, 5}, {4, 7},
+        {5, 0}, {5, 3}, {5, 4}, {5, 7},
+        {6, 1}, {6, 6},
+        {7, 2}, {7, 3}, {7, 4}, {7, 5}
+    };
+    for (const auto& coord : smileFaceCoords)
+    {
+        lc.setLed(0, coord[0], coord[1], true);
+    }
+    lc.setLed(0, 1,7, false);
+}
+
+void printSadFace()
+{
+  printSmileFace();
+  lc.setLed(0, 5,3, false);
+  lc.setLed(0, 5,4, false);
+  lc.setLed(0, 4,3, true);
+  lc.setLed(0, 4,4, true);
 }
 
 void mazeLoop() {
+  if (mazeGameOver) 
+  {
+    xValue = analogRead(PIN_HORIZONTAL);
+    yValue = analogRead(PIN_VERTICAL);
+    buttonPressed = digitalRead(PIN_SWITCH) == LOW;
+
+    if (xValue < 450 || xValue > 570 || yValue < 450 || yValue > 570 || buttonPressed) 
+    {
+      mazeGameOver = false; 
+      level = 1;         
+      resetGame();       
+    }
+    return; 
+  }
+  updateTimer();
   Move_in_the_maze();
-  delay(200); // Întârziere pentru control mai precis
+  delay(200); 
 }
 
 #pragma endregion Maze
@@ -961,9 +1230,6 @@ void snakeLoop(int difficulty) {
 
 #pragma region HANGMAN
 
-String easyWords[] = {"CASA", "MASA", "PARA", "MARE", "LUNA", "APA", "FOC", "PANA", "VACA", "MAMA", "TATA", "TARE", "COPT"};
-String mediumWords[] = {"PISICA", "MASINA", "SCOALA", "STRADA", "FRUNZA", "PUTERE", "OPOSUM", "MUSTATA"};
-String hardWords[] = {"CALENDAR", "TELEFON", "COMPUTER", "BIBLIOTECA", "CRACIUN", "FACULTATE", "FLORARIE"};
 String currentWord;
 String displayWord;
 char currentLetter = 'A';
@@ -991,23 +1257,59 @@ void hangmanLoop(int dif) {
   }
 }
 
-void startGame() {
+void startGameHangman(int dif) {
+  difficulty = dif - 1;
   int randomIndex = random(4);
-  switch(difficulty) {
-    case 0: currentWord = easyWords[randomIndex]; break;
-    case 1: currentWord = mediumWords[randomIndex]; break;
-    case 2: currentWord = hardWords[randomIndex]; break;
-  }
-  
+  selectWord(difficulty,randomIndex );
+
   displayWord = "";
   for(int i = 0; i < currentWord.length(); i++) {
     displayWord += "_";
   }
-  
+
   lives = 6;
   gameOver = false;
   currentLetter = 'A';
   needUpdate = true;
+}
+
+void selectWord(int dif, int index)
+{
+  if(dif==0)
+  {
+    if(index==0)
+      currentWord="CASA";
+    else if(index==1)
+      currentWord="MASA";
+      else if(index==2)
+      currentWord="BANI";
+      else if(index==3)
+      currentWord="PAPUC";
+  }
+
+  if(dif==1)
+  {
+    if(index==0)
+      currentWord="TABLETA";
+    else if(index==1)
+      currentWord="ARAGAZ";
+      else if(index==2)
+      currentWord="MINGE";
+      else if(index==3)
+      currentWord="LAPTOP";
+  }
+
+  if(dif==2)
+  {
+    if(index==0)
+      currentWord="SCAFANDRU";
+    else if(index==1)
+      currentWord="RESTAURANT";
+      else if(index==2)
+      currentWord="ELICOPTER";
+      else if(index==3)
+      currentWord="ALFABET";
+  }
 }
 
 boolean handleJoystick() {
