@@ -25,6 +25,12 @@
 #define MEDIUM 2
 #define HARD 3
 
+#define RUNNER_OPTION 0
+#define MAZE_OPTION 1
+#define SNAKE_OPTION 2
+#define HANGMAN_OPTION 3
+#define ALL_OPTION 4
+
 #pragma region SIDESCROLLER_CONST
 
 #define PIN_AUTOPLAY 1
@@ -82,6 +88,18 @@ int xValue = 0;
 int yValue = 0;
 int bValue = 0;
 
+static bool joystickPushed = false;
+static bool lastJoystickPushState = false;
+static bool joystickUp = false;
+static bool lastJoystickUpState = false;
+static bool joystickDown = false;
+static bool lastJoystickDownState = false;
+
+static bool showMenu = true;
+int menuOption = 0;
+const int numOptions = 5;
+String menuItems[] = {"Runner", "Snake", "Hangman", "Maze", "All"};
+
 // LCD
 LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
 
@@ -91,7 +109,7 @@ void setup()
 {
   lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
   Serial.begin(9600);
-  pinMode(PIN_SWITCH, INPUT_PULLUP);
+  pinMode(PIN_SWITCH, INPUT);
   pinMode(PIN_HORIZONTAL, INPUT);
   pinMode(PIN_VERTICAL, INPUT);
 
@@ -103,8 +121,109 @@ void setup()
 
 void loop()
 {
+  if (showMenu)
+  {
+    checkMenuState();
+    displayMenu();
+    delay(250);
+  }
+  else
+  {
+    handleSelectedOption();
+  }
   //sidescrollerMainLoop(MEDIUM);
-  snakeLoop(HARD);
+  //snakeLoop(HARD);
+}
+
+void handleSelectedOption() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("You selected");
+  lcd.setCursor(0, 1);
+  lcd.print(menuItems[menuOption]);
+  delay(3000);
+}
+
+void checkMenuState() {
+  checkJoystickPush();
+  if (joystickPushed) {
+    showMenu = false;
+    return;
+  }
+
+  checkJoystickUp();
+  checkJoystickDown();
+  if (joystickDown) {
+    menuOption = (menuOption + 1) % numOptions;
+    return;
+  }
+
+  if (joystickUp) {
+    if (menuOption == 0) {
+      menuOption = numOptions - 1;
+      return;
+    }
+
+    menuOption--;
+  }
+}
+
+void displayMenu() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("> "); // Indicates the selected option
+  lcd.print(menuItems[menuOption]);
+  
+  // Optionally show the next option
+  lcd.setCursor(0, 1);
+  lcd.print(menuOption == numOptions - 1 ? menuItems[0] : menuItems[menuOption + 1]);
+}
+
+void checkJoystickUp()
+{
+  static const int threshhold = 600;
+  int joystickState = analogRead(PIN_VERTICAL);
+  if (joystickState > threshhold && lastJoystickUpState == false)
+  {
+    joystickUp = true;
+    lastJoystickUpState = true;
+  }
+  else 
+  {
+    joystickUp = false;
+    lastJoystickUpState = false;
+  }
+}
+
+void checkJoystickDown()
+{
+  static const int threshhold = 400;
+  int joystickState = analogRead(PIN_VERTICAL);
+  if (joystickState < threshhold && lastJoystickDownState == false)
+  {
+    joystickDown = true;
+    lastJoystickDownState = true;
+  }
+  else 
+  {
+    joystickDown = false;
+    lastJoystickDownState = false;
+  }
+}
+
+void checkJoystickPush()
+{
+  int joystickState = digitalRead(PIN_SWITCH);
+  if (joystickState == HIGH && lastJoystickPushState == false)
+  {
+    joystickPushed = true;
+    lastJoystickPushState = true;
+  }
+  else 
+  {
+    joystickPushed = false;
+    lastJoystickPushState = false;
+  }
 }
 
 #pragma endregion MAIN_LOOP
@@ -836,7 +955,7 @@ void hangmanLoop() {
       updateDisplay();
       needUpdate = false;
     }
-    checkButton();
+    hangmanCheckButton();
     delay(50);
   } else {
     if(digitalRead(PIN_SWITCH) == LOW) {
