@@ -108,9 +108,9 @@ static bool chosenEndMenu = false;
 int menuOption = 0;
 int printChosenOption = false;
 const int numOptions = 5;
-String menuItems[] = {"Runner", "Snake", "Hangman", "Maze", "All"};
+String menuItems[] = {"Robotel", "Sarpe", "Spanzuratoare", "Labirint", "Toate"};
 const int endGameNumOptions = 2;
-String endGameMenuItems[] = {"Main menu", "Try again"};
+String endGameMenuItems[] = {"Meniu", "Reincearca"};
 int lastGame;
 
 // LCD
@@ -152,7 +152,10 @@ void loop()
     if(menuOption == MAIN_MENU_OPTION)
       setShowMenu();
     else
+    {
       menuOption = lastGame;
+      printChosenOption = true;
+    }
     chosenEndMenu = false;
   }
   else
@@ -180,7 +183,7 @@ void handleSelectedOption() {
   {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(F("You selected"));
+    lcd.print(F("Ai selectat"));
     lcd.setCursor(0, 1);
     lcd.print(menuItems[menuOption]);
     delay(1000);
@@ -193,6 +196,8 @@ void handleSelectedOption() {
       sidescrollerMainLoop(EASY);
       break;
     case SNAKE_OPTION:
+      if (printChosenOption)
+        snakeSetup();
       snakeLoop(EASY);
       break;
     case HANGMAN_OPTION:
@@ -202,7 +207,7 @@ void handleSelectedOption() {
       break;
     case MAZE_OPTION:
       if (printChosenOption)
-        mazeStart(EASY);
+        mazeStart();
       mazeLoop();
       break;
     case ALL_OPTION:
@@ -453,7 +458,7 @@ void sidescrollerMainLoop(int difficulty) {
     drawHero((blink) ? HERO_POSITION_OFF : heroPos, terrainUpper, terrainLower, distance >> 3);
     if (blink) {
       lcd.setCursor(0,0);
-      lcd.print("Press Start");
+      lcd.print("Muta joystick");
     }
     delay(250);
     blink = !blink;
@@ -492,6 +497,9 @@ void sidescrollerMainLoop(int difficulty) {
   if (drawHero(heroPos, terrainUpper, terrainLower, distance >> 3)) {
     playing = false; // The hero collided with something. Too bad.
     setShowEndGameMenu();
+    initializeGraphics();
+    heroPos = HERO_POSITION_RUN_LOWER_1;
+    distance = 0;
   } else {
     //advance hero
     if (heroPos == HERO_POSITION_RUN_LOWER_2 || heroPos == HERO_POSITION_JUMP_8) {
@@ -703,14 +711,14 @@ void mazeSetup()
   lc.setIntensity(0, 15); 
 }
 
-void mazeStart(int difficulty)
+void mazeStart()
 {
   lc.clearDisplay(0);
   
   CurrentState[cursor_row][cursor_col] = 1;
   lc.setLed(0, cursor_row, cursor_col, true); 
   
-  resetGame(difficulty);
+  resetGame();
 }
 
 void setLevel(int difficulty)
@@ -771,49 +779,6 @@ void resetGame()
   lcd.print(F(" sec"));
 }
 
-void resetGame(int difficulty) 
-{
-  if(mazeGameOver)
-  {
-    return;
-  }
-  
-  setLevel(difficulty);
-  
-  lcd.clear();
-  cursor_col = 0; 
-  cursor_row = 2;  
-  game_won = false; 
-
-  if (level == 1) {
-    currentTime = easyTime;
-  } else if (level == 2) {
-    currentTime = mediumTime;
-  } else if (level == 3) {
-    currentTime = hardTime;
-  }
-
-  lc.clearDisplay(0); 
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
-      CurrentState[i][j] = 0; 
-    }
-  }
-
-  CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true);
-
-  lcd.setCursor(0, 0);
-  lcd.print(F("Nivel "));
-  lcd.print(level);
-  lcd.setCursor(0, 1);
-  lcd.print(F("Timp: "));
-  lcd.print(currentTime);
-  lcd.print(F(" sec"));
-}
-
-
-
 void updateTimer() {
   if (millis() - lastUpdateTime >= timerInterval) {
     lastUpdateTime = millis();
@@ -830,9 +795,9 @@ void updateTimer() {
       lcd.setCursor(0, 0);
       lcd.print(F("Timp expirat!"));
       lcd.setCursor(0, 1);
-      lcd.print(F("Reincearca!"));
+      lcd.print(F("Ai pierdut :("));
       delay(2000);
-      resetGame(); 
+      onMazeGameOver(); 
     }
   }
 }
@@ -900,8 +865,7 @@ void GameWon()
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print(F("Ai castigat!"));
-      lcd.setCursor(0, 1);
-      lcd.print(F("Misca joystick"));
+      delay(1000);
     }
 }
 
@@ -934,19 +898,18 @@ void printSadFace()
   lc.setLed(0, 4,4, true);
 }
 
+void onMazeGameOver() {
+  lc.clearDisplay(0);
+  mazeGameOver = false; 
+  level = 1;         
+  resetGame();
+  setShowEndGameMenu();
+}
+
 void mazeLoop() {
   if (mazeGameOver) 
   {
-    xValue = analogRead(PIN_HORIZONTAL);
-    yValue = analogRead(PIN_VERTICAL);
-    buttonPressed = digitalRead(PIN_SWITCH) == LOW;
-
-    if (xValue < 450 || xValue > 570 || yValue < 450 || yValue > 570 || buttonPressed) 
-    {
-      mazeGameOver = false; 
-      level = 1;         
-      resetGame();       
-    }
+    onMazeGameOver();
     return; 
   }
   updateTimer();
@@ -1128,6 +1091,7 @@ void snakeSetup() {
   curr_direction = RIGHT;
   generate_apple();
   draw_snake();
+  applesEaten = 0;
 }
 
 short time_since_last_draw = 0;
@@ -1208,9 +1172,10 @@ void snakeLoop(int difficulty) {
         if (check_collision()) {
             lcd.clear();
             lcd.setCursor(0, 0);
-            lcd.print("Game Over!");
-             isGameActive = false;
-
+            lcd.print("Ai pierdut :(");
+            //isGameActive = false;
+            delay(1000);
+            setShowEndGameMenu();
             checkDifficultyAdjustment(difficulty);
             return;
         }
@@ -1237,13 +1202,6 @@ int lives = 6;
 boolean gameOver = false;
 int difficulty = 0;
 boolean needUpdate = false;
-
-void hangmanSetup() {
-  lcd.begin(16, 2);
-  pinMode(PIN_SWITCH, INPUT_PULLUP);
-  randomSeed(analogRead(A2));
-  //selectDifficulty();
-}
 
 void hangmanLoop(int dif) {
   difficulty = dif;
@@ -1377,9 +1335,11 @@ void updateDisplay() {
 
 void showGameOver() {
   lcd.clear();
-  lcd.print(F("Game Over!"));
+  lcd.print(F("Ai pierdut :("));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
+  delay(1000);
+  setShowEndGameMenu();
 }
 
 void showWin() {
@@ -1387,6 +1347,8 @@ void showWin() {
   lcd.print(F("Ai castigat!"));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
+  delay(1000);
+  setShowEndGameMenu();
 }
 
 #pragma endregion HANGMAN
