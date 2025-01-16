@@ -100,6 +100,7 @@ static bool lastJoystickDownState = false;
 
 static bool showMenu = true;
 int menuOption = 0;
+int printChosenOption = false;
 const int numOptions = 5;
 String menuItems[] = {"Runner", "Snake", "Hangman", "Maze", "All"};
 
@@ -139,17 +140,43 @@ void loop()
 }
 
 void handleSelectedOption() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("You selected");
-  lcd.setCursor(0, 1);
-  lcd.print(menuItems[menuOption]);
-  delay(3000);
+  if (printChosenOption)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(F("You selected"));
+    lcd.setCursor(0, 1);
+    lcd.print(menuItems[menuOption]);
+    lcd.clear();
+    printChosenOption = false;
+    delay(1000);
+  }
+
+  switch (menuOption)
+  {
+    case RUNNER_OPTION:
+      sidescrollerMainLoop(EASY);
+      break;
+    case SNAKE_OPTION:
+      snakeLoop(EASY);
+      break;
+    case HANGMAN_OPTION:
+      hangmanLoop(EASY);
+      break;
+    case MAZE_OPTION:
+      mazeLoop();
+      break;
+    case ALL_OPTION:
+      break;
+    default:
+      break;
+  }
 }
 
 void checkMenuState() {
   checkJoystickPush();
   if (joystickPushed) {
+    printChosenOption = true;
     showMenu = false;
     return;
   }
@@ -635,14 +662,14 @@ void Move_in_the_maze() {
   // Verifică dacă poziția curentă este cea finală
   if (cursor_row == 1 && cursor_col == 7) {
     game_won = true;
-    Serial.println("Felicitări, ai câștigat!");
+    Serial.println(F("Felicitări, ai câștigat!"));
     // Afișăm mesajul pe LCD
     lcd.clear();
     lcd.setCursor(0, 0); // Setează cursorul la începutul liniei 0
-    lcd.print("Felicitari!");
+    lcd.print(F("Felicitari!"));
     delay(1000);
     lcd.setCursor(0, 1); // Linia 1
-    lcd.print("Ai reusit!");
+    lcd.print(F("Ai reusit!"));
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
@@ -949,10 +976,11 @@ void hangmanSetup() {
   lcd.begin(16, 2);
   pinMode(PIN_SWITCH, INPUT_PULLUP);
   randomSeed(analogRead(A2));
-  selectDifficulty();
+  //selectDifficulty();
 }
 
-void hangmanLoop() {
+void hangmanLoop(int dif) {
+  difficulty = dif;
   if(!gameOver) {
     if(handleJoystick() || needUpdate) {
       updateDisplay();
@@ -960,43 +988,6 @@ void hangmanLoop() {
     }
     hangmanCheckButton();
     delay(50);
-  } else {
-    if(digitalRead(PIN_SWITCH) == LOW) {
-      delay(200);
-      selectDifficulty();
-    }
-  }
-}
-
-void selectDifficulty() {
-  lcd.clear();
-  lcd.print("Dificultate:");
-  difficulty = 0;
-  updateDifficultyDisplay();
-  
-  while(digitalRead(PIN_SWITCH) == HIGH) {
-    int yValue = analogRead(PIN_VERTICAL);
-    if(yValue > 800) {
-      difficulty = (difficulty + 1) % 3;
-      updateDifficultyDisplay();
-      delay(200);
-    }
-    else if(yValue < 200) {
-      difficulty = (difficulty - 1 + 3) % 3;
-      updateDifficultyDisplay();
-      delay(200);
-    }
-  }
-  delay(500);
-  startGame();
-}
-
-void updateDifficultyDisplay() {
-  lcd.setCursor(0, 1);
-  switch(difficulty) {
-    case 0: lcd.print("Usor          "); break;
-    case 1: lcd.print("Mediu         "); break;
-    case 2: lcd.print("Greu          "); break;
   }
 }
 
@@ -1073,9 +1064,9 @@ void checkLetter() {
 void updateDisplay() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Lives: ");
+  lcd.print(F("Lives: "));
   lcd.print(lives);
-  lcd.print(" ");
+  lcd.print(F(" "));
   lcd.print(currentLetter);
   
   lcd.setCursor(0, 1);
@@ -1084,14 +1075,14 @@ void updateDisplay() {
 
 void showGameOver() {
   lcd.clear();
-  lcd.print("Game Over!");
+  lcd.print(F("Game Over!"));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
 }
 
 void showWin() {
   lcd.clear();
-  lcd.print("Ai castigat!");
+  lcd.print(F("Ai castigat!"));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
 }
