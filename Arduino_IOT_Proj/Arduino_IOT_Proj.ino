@@ -112,6 +112,9 @@ String menuItems[] = {"Robotel", "Sarpe", "Spanzuratoare", "Labirint", "Toate"};
 const int endGameNumOptions = 2;
 String endGameMenuItems[] = {"Meniu", "Reincearca"};
 int lastGame;
+int snakeDif = EASY;
+int ruunnerDif = EASY;
+int hangmanDif = EASY;
 
 // LCD
 LiquidCrystal lcd(PIN_RS, PIN_ENABLE, PIN_D4, PIN_D5, PIN_D6, PIN_D7);
@@ -193,17 +196,17 @@ void handleSelectedOption() {
   switch (menuOption)
   {
     case RUNNER_OPTION:
-      sidescrollerMainLoop(EASY);
+      sidescrollerMainLoop(ruunnerDif);
       break;
     case SNAKE_OPTION:
       if (printChosenOption)
         snakeSetup();
-      snakeLoop(EASY);
+      snakeLoop(snakeDif);
       break;
     case HANGMAN_OPTION:
       if (printChosenOption)
-        startGameHangman(EASY);
-      hangmanLoop(EASY);
+        startGameHangman(hangmanDif);
+      hangmanLoop(hangmanDif);
       break;
     case MAZE_OPTION:
       if (printChosenOption)
@@ -437,7 +440,7 @@ int getEmptyTerrainLength(int difficulty)
     case HARD:
       return 5;
     default:
-      return 10;
+      return 5;
   }
 }
 
@@ -498,6 +501,8 @@ void sidescrollerMainLoop(int difficulty) {
     playing = false; // The hero collided with something. Too bad.
     setShowEndGameMenu();
     initializeGraphics();
+    if (distance >> 3 >= 20)
+      ruunnerDif++;
     heroPos = HERO_POSITION_RUN_LOWER_1;
     distance = 0;
   } else {
@@ -1145,11 +1150,11 @@ int getGameSpeed(int difficulty) {
     }
 }
 
-void checkDifficultyAdjustment(int &difficulty) {
-    if (applesEaten >= 15 && difficulty < HARD) {
-        difficulty++;
-    } else if (applesEaten < 15 && difficulty > EASY) {
-        difficulty--;
+void checkDifficultyAdjustment() {
+    if (applesEaten >= 15 && snakeDif < HARD) {
+        snakeDif++;
+    } else if (applesEaten < 15 && snakeDif > EASY) {
+        snakeDif--;
     }
     applesEaten = 0;
 }
@@ -1176,9 +1181,9 @@ void snakeLoop(int difficulty) {
             lcd.setCursor(0, 0);
             lcd.print("Ai pierdut! :(");
             //isGameActive = false;
+            checkDifficultyAdjustment();
             delay(1000);
             setShowEndGameMenu();
-            checkDifficultyAdjustment(difficulty);
             return;
         }
 
@@ -1259,7 +1264,7 @@ void selectWord(int dif, int index)
       currentWord="LAPTOP";
   }
 
-  if(dif==2)
+  if(dif>=2)
   {
     if(index==0)
       currentWord="SCAFANDRU";
@@ -1349,6 +1354,7 @@ void showWin() {
   lcd.print(F("Ai castigat!"));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
+  hangmanDif++;
   delay(1000);
   setShowEndGameMenu();
 }
