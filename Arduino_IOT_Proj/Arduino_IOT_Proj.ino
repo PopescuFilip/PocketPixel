@@ -444,6 +444,14 @@ int getEmptyTerrainLength(int difficulty)
   }
 }
 
+void checkDifficultyAdjustmentRunner(int score) {
+    if (score >= 20 && ruunnerDif < HARD) {
+        ruunnerDif++;
+    } else if (score < 20 && ruunnerDif > EASY) {
+        ruunnerDif--;
+    }
+  }
+
 void sidescrollerMainLoop(int difficulty) {
 
   static byte heroPos = HERO_POSITION_RUN_LOWER_1;
@@ -501,8 +509,7 @@ void sidescrollerMainLoop(int difficulty) {
     playing = false; // The hero collided with something. Too bad.
     setShowEndGameMenu();
     initializeGraphics();
-    if (distance >> 3 >= 20)
-      ruunnerDif++;
+    checkDifficultyAdjustmentRunner(distance >> 3);
     heroPos = HERO_POSITION_RUN_LOWER_1;
     distance = 0;
   } else {
@@ -1345,6 +1352,8 @@ void showGameOver() {
   lcd.print(F("Ai pierdut :("));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
+  if (hangmanDif > EASY)
+    hangmanDif--;
   delay(1000);
   setShowEndGameMenu();
 }
@@ -1354,7 +1363,8 @@ void showWin() {
   lcd.print(F("Ai castigat!"));
   lcd.setCursor(0, 1);
   lcd.print(currentWord);
-  hangmanDif++;
+  if (hangmanDif < HARD)
+    hangmanDif++;
   delay(1000);
   setShowEndGameMenu();
 }
