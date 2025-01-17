@@ -1101,8 +1101,8 @@ unsigned long last_update = 0;
 
 
 void update_input() {
-    int xValue = analogRead(yValue);
-    int yValue = analogRead(xValue);
+    int xValue = analogRead(PIN_HORIZONTAL);
+    int yValue = analogRead(PIN_VERTICAL);
 
     right_just_pressed = (xValue < 300);
     left_just_pressed = (xValue > 700);
