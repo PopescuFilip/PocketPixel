@@ -72,7 +72,7 @@
 #define HERO_POSITION_JUMP_8 10      // About to land
 
 #define HERO_POSITION_RUN_UPPER_1 11 // Hero is running on upper row (pose 1)
-#define HERO_POSITION_RUN_UPPER_2 12 //     
+#define HERO_POSITION_RUN_UPPER_2 12 //
 
 #pragma endregion SIDESCROLLER_CONST
 
@@ -120,7 +120,7 @@ LedControl lc(DIN, CLK, CS, 0);
 
 void setup()
 {
-  lcd.begin(SCREEN_COLS, SCREEN_ROWS); 
+  lcd.begin(SCREEN_COLS, SCREEN_ROWS);
   Serial.begin(9600);
   pinMode(PIN_SWITCH, INPUT_PULLUP);
   pinMode(PIN_HORIZONTAL, INPUT);
@@ -275,7 +275,7 @@ void displayMenu() {
   lcd.setCursor(0, 0);
   lcd.print("> "); // Indicates the selected option
   lcd.print(menuItems[menuOption]);
-  
+
   // Optionally show the next option
   lcd.setCursor(0, 1);
   lcd.print(menuOption == numOptions - 1 ? menuItems[0] : menuItems[menuOption + 1]);
@@ -286,7 +286,7 @@ void displayEndMenu() {
   lcd.setCursor(0, 0);
   lcd.print("> "); // Indicates the selected option
   lcd.print(endGameMenuItems[menuOption]);
-  
+
   // Optionally show the next option
   lcd.setCursor(0, 1);
   lcd.print(menuOption == endGameNumOptions - 1 ? endGameMenuItems[0] : endGameMenuItems[menuOption + 1]);
@@ -301,7 +301,7 @@ void checkJoystickUp()
     joystickUp = true;
     lastJoystickUpState = true;
   }
-  else 
+  else
   {
     joystickUp = false;
     lastJoystickUpState = false;
@@ -317,7 +317,7 @@ void checkJoystickDown()
     joystickDown = true;
     lastJoystickDownState = true;
   }
-  else 
+  else
   {
     joystickDown = false;
     lastJoystickDownState = false;
@@ -332,7 +332,7 @@ void checkJoystickPush()
     joystickPushed = true;
     lastJoystickPushState = true;
   }
-  else 
+  else
   {
     joystickPushed = false;
     lastJoystickPushState = false;
@@ -449,7 +449,7 @@ void sidescrollerMainLoop(int difficulty) {
   static bool playing = false;
   static bool blink = false;
   static unsigned int distance = 0;
-  
+
   const int baseEmptyTerrainLength = getEmptyTerrainLength(difficulty);
 
   checkButton();
@@ -476,7 +476,7 @@ void sidescrollerMainLoop(int difficulty) {
   // Shift the terrain to the left
   advanceTerrain(terrainLower, newTerrainType == TERRAIN_LOWER_BLOCK ? SPRITE_TERRAIN_SOLID : SPRITE_TERRAIN_EMPTY);
   advanceTerrain(terrainUpper, newTerrainType == TERRAIN_UPPER_BLOCK ? SPRITE_TERRAIN_SOLID : SPRITE_TERRAIN_EMPTY);
-  
+
   // Make new terrain to enter on the right
   if (--newTerrainDuration == 0) {
     if (newTerrainType == TERRAIN_EMPTY) {
@@ -487,12 +487,12 @@ void sidescrollerMainLoop(int difficulty) {
       newTerrainDuration = baseEmptyTerrainLength + random(5);
     }
   }
-    
+
   if (buttonPushed) {
-    if (heroPos <= HERO_POSITION_RUN_LOWER_2) 
+    if (heroPos <= HERO_POSITION_RUN_LOWER_2)
       heroPos = HERO_POSITION_JUMP_1;
     buttonPushed = false;
-  }  
+  }
 
   if (drawHero(heroPos, terrainUpper, terrainLower, distance >> 3)) {
     playing = false; // The hero collided with something. Too bad.
@@ -514,7 +514,7 @@ void sidescrollerMainLoop(int difficulty) {
       ++heroPos;
     }
     ++distance;
-    
+
     digitalWrite(PIN_AUTOPLAY, terrainLower[HERO_HORIZONTAL_POSITION + 2] == SPRITE_TERRAIN_EMPTY ? HIGH : LOW);
   }
   delay(100);
@@ -596,9 +596,9 @@ bool drawHero(byte position, char* terrainUpper, char* terrainLower, unsigned in
     terrainLower[HERO_HORIZONTAL_POSITION] = lower;
     collide |= (lowerSave == SPRITE_TERRAIN_EMPTY) ? false : true;
   }
-  
+
   byte digits = (score > 9999) ? 5 : (score > 999) ? 4 : (score > 99) ? 3 : (score > 9) ? 2 : 1;
-  
+
   // Draw the scene
   terrainUpper[TERRAIN_WIDTH] = '\0';
   terrainLower[TERRAIN_WIDTH] = '\0';
@@ -606,10 +606,10 @@ bool drawHero(byte position, char* terrainUpper, char* terrainLower, unsigned in
   terrainUpper[16-digits] = '\0';
   lcd.setCursor(0,0);
   lcd.print(terrainUpper);
-  terrainUpper[16-digits] = temp;  
+  terrainUpper[16-digits] = temp;
   lcd.setCursor(0,1);
   lcd.print(terrainLower);
-  
+
   lcd.setCursor(16 - digits,0);
   lcd.print(score);
 
@@ -621,13 +621,13 @@ bool drawHero(byte position, char* terrainUpper, char* terrainLower, unsigned in
 void checkButton()
 {
   static const int threshhold = 600;
-  int joystickState = analogRead(PIN_VERTICAL);
+  int joystickState = 1023-analogRead(PIN_HORIZONTAL);
   if (joystickState > threshhold && lastButtonState == false)
   {
     buttonPushed = true;
     lastButtonState = true;
   }
-  else 
+  else
   {
     buttonPushed = false;
     lastButtonState = false;
@@ -640,11 +640,11 @@ void checkButton()
 #pragma region Maze
 
 bool buttonPressed = false;
-int cursor_col = 0; 
-int cursor_row = 2; 
+int cursor_col = 0;
+int cursor_row = 2;
 int CurrentState[8][8] = {0};
 
-bool game_won = false; 
+bool game_won = false;
 bool mazeGameOver=false;
 
 int level=1;
@@ -653,8 +653,8 @@ const int mediumTime=20;
 const int hardTime=10;
 int currentTime;
 
-unsigned long lastUpdateTime = 0; 
-unsigned long timerInterval = 1000; 
+unsigned long lastUpdateTime = 0;
+unsigned long timerInterval = 1000;
 
 int Move_up[8][8] = {
   {0,0,0,0,0,0,0,0},
@@ -708,16 +708,16 @@ int Move_right[8][8] = {
 void mazeSetup()
 {
   lc.shutdown(0, false);
-  lc.setIntensity(0, 15); 
+  lc.setIntensity(0, 15);
 }
 
 void mazeStart()
 {
   lc.clearDisplay(0);
-  
+
   CurrentState[cursor_row][cursor_col] = 1;
-  lc.setLed(0, cursor_row, cursor_col, true); 
-  
+  lc.setLed(0, cursor_row, cursor_col, true);
+
   resetGame();
 }
 
@@ -740,17 +740,17 @@ void setLevel(int difficulty)
   }
 }
 
-void resetGame() 
+void resetGame()
 {
   if(mazeGameOver)
   {
     return;
   }
-  
+
   lcd.clear();
-  cursor_col = 0; 
-  cursor_row = 2;  
-  game_won = false; 
+  cursor_col = 0;
+  cursor_row = 2;
+  game_won = false;
 
   if (level == 1) {
     currentTime = easyTime;
@@ -760,10 +760,10 @@ void resetGame()
     currentTime = hardTime;
   }
 
-  lc.clearDisplay(0); 
+  lc.clearDisplay(0);
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      CurrentState[i][j] = 0; 
+      CurrentState[i][j] = 0;
     }
   }
 
@@ -788,8 +788,10 @@ void updateTimer() {
       lcd.print(F("Timp: "));
       lcd.print(currentTime);
       lcd.print(F(" sec "));
-    } else 
+    } else
     {
+      lc.setLed(0, cursor_row,cursor_col, false);
+      lc.setLed(0, 2,0, false);
       printSadFace();
       lcd.clear();
       lcd.setCursor(0, 0);
@@ -797,7 +799,7 @@ void updateTimer() {
       lcd.setCursor(0, 1);
       lcd.print(F("Ai pierdut :("));
       delay(2000);
-      onMazeGameOver(); 
+      onMazeGameOver();
     }
   }
 }
@@ -814,20 +816,20 @@ void Move_in_the_maze() {
 
  if (xValue < 450 && Move_up[cursor_row][cursor_col] == 1 && cursor_row > 0) {
     new_row--;
-  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) { 
+  } else if (yValue < 450 && Move_right[cursor_row][cursor_col] == 1 && cursor_col < 7) {
     new_col++;
-  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) { 
+  } else if (xValue > 570 && Move_down[cursor_row][cursor_col] == 1 && cursor_row < 7) {
     new_row++;
-  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) { 
+  } else if (yValue > 570 && Move_left[cursor_row][cursor_col] == 1 && cursor_col > 0) {
     new_col--;
   }
 
   if (new_row != cursor_row || new_col != cursor_col) {
     CurrentState[cursor_row][cursor_col] = 0;
-    lc.setLed(0, cursor_row, cursor_col, false); 
+    lc.setLed(0, cursor_row, cursor_col, false);
 
-    CurrentState[new_row][new_col] = 1; 
-    lc.setLed(0, new_row, new_col, true); 
+    CurrentState[new_row][new_col] = 1;
+    lc.setLed(0, new_row, new_col, true);
 
     cursor_row = new_row;
     cursor_col = new_col;
@@ -844,22 +846,22 @@ void GameWon()
 {
  game_won = true;
     lcd.clear();
-    lcd.setCursor(0, 0); 
+    lcd.setCursor(0, 0);
     lcd.print(F("Felicitari!"));
     delay(1000);
-    lcd.setCursor(0, 1); 
+    lcd.setCursor(0, 1);
     lcd.print(F("Nivel complet!"));
 
     printSmileFace();
 
-     delay(4000); 
-     
-    if (level < 3) 
+     delay(4000);
+
+    if (level < 3)
     {
-      level++; 
+      level++;
       resetGame();
-    } 
-    else if(level==3) 
+    }
+    else if(level==3)
     {
       mazeGameOver=true;
       lcd.clear();
@@ -896,25 +898,27 @@ void printSadFace()
   lc.setLed(0, 5,4, false);
   lc.setLed(0, 4,3, true);
   lc.setLed(0, 4,4, true);
+  lc.setLed(0, cursor_row,cursor_col, false);
 }
 
 void onMazeGameOver() {
-  lc.clearDisplay(0);
-  mazeGameOver = false; 
-  level = 1;         
+
+  mazeGameOver = false;
+  level = 1;
   resetGame();
   setShowEndGameMenu();
+  lc.setLed(0, 2,0, false);
 }
 
 void mazeLoop() {
-  if (mazeGameOver) 
+  if (mazeGameOver)
   {
     onMazeGameOver();
-    return; 
+    return;
   }
   updateTimer();
   Move_in_the_maze();
-  delay(200); 
+  delay(200);
 }
 
 #pragma endregion Maze
@@ -923,8 +927,6 @@ void mazeLoop() {
 
 extern LiquidCrystal lcd;
 
-const int JOYSTICK_X_PIN = A0;
-const int JOYSTICK_Y_PIN = A1;
 
 const short MIN_DRAW_WAIT = 60;
 
@@ -1099,14 +1101,14 @@ unsigned long last_update = 0;
 
 
 void update_input() {
-    int xValue = analogRead(JOYSTICK_X_PIN);
-    int yValue = analogRead(JOYSTICK_Y_PIN);
+    int xValue = analogRead(yValue);
+    int yValue = analogRead(xValue);
 
-    right_just_pressed = (xValue < 300);  
-    left_just_pressed = (xValue > 700); 
-    
-    down_just_pressed = (yValue < 300);   
-    up_just_pressed = (yValue > 700);   
+    right_just_pressed = (xValue < 300);
+    left_just_pressed = (xValue > 700);
+
+    down_just_pressed = (yValue < 300);
+    up_just_pressed = (yValue > 700);
 
     if (left_just_pressed && curr_direction != RIGHT) {
         curr_direction = LEFT;
@@ -1127,7 +1129,7 @@ bool check_collision() {
         }
         curr_node = curr_node->prev;
     }
-    return false; 
+    return false;
 }
 
 int getGameSpeed(int difficulty) {
@@ -1135,9 +1137,9 @@ int getGameSpeed(int difficulty) {
         case EASY:
             return INITIAL_SPEED;
         case MEDIUM:
-            return INITIAL_SPEED - 30;  
+            return INITIAL_SPEED - 30;
         case HARD:
-            return INITIAL_SPEED - 60;  
+            return INITIAL_SPEED - 60;
         default:
             return INITIAL_SPEED;
     }
@@ -1149,12 +1151,12 @@ void checkDifficultyAdjustment(int &difficulty) {
     } else if (applesEaten < 15 && difficulty > EASY) {
         difficulty--;
     }
-    applesEaten = 0; 
+    applesEaten = 0;
 }
 
 void snakeLoop(int difficulty) {
   if (!isGameActive) {
-        return; 
+        return;
     }
 
     update_input();
@@ -1164,7 +1166,7 @@ void snakeLoop(int difficulty) {
     last_update = time;
     time_since_last_draw += elapsed;
 
-    int gameSpeed = getGameSpeed(difficulty); 
+    int gameSpeed = getGameSpeed(difficulty);
 
     if (time_since_last_draw >= gameSpeed) {
         move_snake();
@@ -1172,7 +1174,7 @@ void snakeLoop(int difficulty) {
         if (check_collision()) {
             lcd.clear();
             lcd.setCursor(0, 0);
-            lcd.print("Ai pierdut :(");
+            lcd.print("Ai pierdut! :(");
             //isGameActive = false;
             delay(1000);
             setShowEndGameMenu();
@@ -1273,7 +1275,7 @@ void selectWord(int dif, int index)
 boolean handleJoystick() {
   int xValue = analogRead(PIN_HORIZONTAL);
   boolean changed = false;
-  
+
   if(xValue > 800) {
     currentLetter++;
     if(currentLetter > 'Z') currentLetter = 'A';
@@ -1286,7 +1288,7 @@ boolean handleJoystick() {
     changed = true;
     delay(200);
   }
-  
+
   return changed;
 }
 
@@ -1306,7 +1308,7 @@ void checkLetter() {
       found = true;
     }
   }
-  
+
   if(!found) {
     lives--;
     if(lives <= 0) {
@@ -1314,7 +1316,7 @@ void checkLetter() {
       showGameOver();
     }
   }
-  
+
   if(displayWord.equals(currentWord)) {
     gameOver = true;
     showWin();
@@ -1328,7 +1330,7 @@ void updateDisplay() {
   lcd.print(lives);
   lcd.print(F(" "));
   lcd.print(currentLetter);
-  
+
   lcd.setCursor(0, 1);
   lcd.print(displayWord);
 }
